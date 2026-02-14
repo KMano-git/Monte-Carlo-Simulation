@@ -17,6 +17,10 @@ module cdf_reader
    real(dp) :: prob_grid(N_PROB)                  ! 確率グリッド
    real(dp) :: angle_cdf(N_PROB, N_ENERGY_ANGLE)  ! 散乱角CDF [rad]
 
+   ! 対数グリッドパラメータ
+   real(dp) :: log_E_grid_sigma_min, log_E_grid_sigma_dlt
+   real(dp) :: log_E_grid_angle_min, log_E_grid_angle_dlt
+
    logical :: cdf_loaded = .false.
 
 contains
@@ -152,12 +156,16 @@ contains
       !------------------------------------------------------------------------------
 
       ! エネルギーグリッドの構築（対数等間隔: 0.001 - 100 eV）
+      log_E_grid_sigma_min = log(0.001d0)
+      log_E_grid_sigma_dlt = log(100.0d0/0.001d0) / (N_ENERGY_SIGMA - 1.0d0)
       do i = 1, N_ENERGY_SIGMA
-         energy_grid_sigma(i) = 0.001d0 * (100.0d0/0.001d0)**((i-1.0d0)/(N_ENERGY_SIGMA-1.0d0))
+         energy_grid_sigma(i) = exp(log_E_grid_sigma_min + (i-1)*log_E_grid_sigma_dlt)
       end do
 
+      log_E_grid_angle_min = log(0.001d0)
+      log_E_grid_angle_dlt = log(100.0d0/0.001d0) / (N_ENERGY_ANGLE - 1.0d0)
       do i = 1, N_ENERGY_ANGLE
-         energy_grid_angle(i) = 0.001d0 * (100.0d0/0.001d0)**((i-1.0d0)/(N_ENERGY_ANGLE-1.0d0))
+         energy_grid_angle(i) = exp(log_E_grid_angle_min + (i-1)*log_E_grid_angle_dlt)
       end do
 
       ! 確率グリッド（0 - 1）
@@ -193,7 +201,7 @@ contains
       real(dp), intent(in) :: energy
       real(dp) :: sigma
 
-      real(dp) :: E_clipped, log_E, log_E_grid(N_ENERGY_SIGMA)
+      real(dp) :: E_clipped, log_E
       real(dp) :: t
       integer :: idx
 
@@ -206,18 +214,12 @@ contains
       E_clipped = max(energy_grid_sigma(1), min(energy, energy_grid_sigma(N_ENERGY_SIGMA)))
       log_E = log(E_clipped)
 
-      ! 対数グリッド
-      log_E_grid = log(energy_grid_sigma)
-
-      ! インデックス検索
-      idx = 1
-      do while (idx < N_ENERGY_SIGMA .and. log_E_grid(idx+1) < log_E)
-         idx = idx + 1
-      end do
-      idx = min(idx, N_ENERGY_SIGMA - 1)
+      ! インデックス計算 (対数等間隔グリッド)
+      idx = int((log_E - log_E_grid_sigma_min) / log_E_grid_sigma_dlt) + 1
+      idx = max(1, min(idx, N_ENERGY_SIGMA - 1))
 
       ! 対数線形補間
-      t = (log_E - log_E_grid(idx)) / (log_E_grid(idx+1) - log_E_grid(idx))
+      t = (log_E - (log_E_grid_sigma_min + (idx-1)*log_E_grid_sigma_dlt)) / log_E_grid_sigma_dlt
       t = max(0.0d0, min(1.0d0, t))
 
       sigma = exp((1.0d0 - t) * log(sigma_elastic(idx)) + t * log(sigma_elastic(idx+1)))
@@ -232,7 +234,7 @@ contains
       real(dp), intent(in) :: rand_p   ! 乱数 [0, 1]
       real(dp) :: chi                  ! 散乱角 [rad]
 
-      real(dp) :: E_clipped, log_E, log_E_grid(N_ENERGY_ANGLE)
+      real(dp) :: E_clipped, log_E
       real(dp) :: t, s
       integer :: e_idx, p_idx
       real(dp) :: cdf_low(N_PROB), cdf_high(N_PROB), cdf_interp(N_PROB)
@@ -245,17 +247,13 @@ contains
       ! エネルギーをクリップ
       E_clipped = max(energy_grid_angle(1), min(energy, energy_grid_angle(N_ENERGY_ANGLE)))
       log_E = log(E_clipped)
-      log_E_grid = log(energy_grid_angle)
 
-      ! エネルギーインデックス
-      e_idx = 1
-      do while (e_idx < N_ENERGY_ANGLE .and. log_E_grid(e_idx+1) < log_E)
-         e_idx = e_idx + 1
-      end do
-      e_idx = min(e_idx, N_ENERGY_ANGLE - 1)
+      ! エネルギーインデックス計算
+      e_idx = int((log_E - log_E_grid_angle_min) / log_E_grid_angle_dlt) + 1
+      e_idx = max(1, min(e_idx, N_ENERGY_ANGLE - 1))
 
       ! エネルギー補間係数
-      t = (log_E - log_E_grid(e_idx)) / (log_E_grid(e_idx+1) - log_E_grid(e_idx))
+      t = (log_E - (log_E_grid_angle_min + (e_idx-1)*log_E_grid_angle_dlt)) / log_E_grid_angle_dlt
       t = max(0.0d0, min(1.0d0, t))
 
       ! CDFを補間
