@@ -1,0 +1,31 @@
+0D3V Monte Carlo Simulations
+
+ディレクトリ構造
+上から順に依存関係がある
+
+1D3V/
+├── code/              # ソースコード
+│   ├── constants.f90      # 物理定数定義
+│   ├── particle_data.f90  # 粒子データ定義
+│   ├── cdf_reader.f90     # CDFファイル読み込み
+│   ├── random_utils.f90   # 乱数生成とMaxwell分布サンプリング
+│   ├── cross_sections.f90 # 断面積計算
+│   ├── collisions.f90     # 衝突処理
+│   ├── check_coll.f90     # 衝突判定
+│   ├── io.f90             # 入出力処理
+│   └── main.f90           # メインプログラム
+├── run/               # 実行ディレクトリ
+│   ├── input.nml          # 入力パラメータファイル
+│   └── dd_00_elastic.cdf  # 断面積データファイル
+├── Makefile           # ビルドファイル
+└── README.md          # 本マニュアル
+
+# 更新
+Janev近似式を変更
+sigma = 3.0d-19 * (1.0d0 - 0.05d0 * log10(E_clip))**2
+↓
+sigma_cx = 0.6937d-18 * (1.0d0 - 0.155d0 * log10(E_rel))**2 / (1.0d0 + 0.1112d-14 * E_rel**3.3d0)
+
+# 追加要素
+0D3Vに位置xを追加しただけ、基本的には結果は変わらないはず
+位置毎のパラメータを集計できるようにする

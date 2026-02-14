@@ -1,0 +1,11 @@
+&histogram_params
+  T_neutral   = 1.0d0
+  E_neutral   = 10.0d0
+  T_ion       = 2.0d0
+  n_bg        = 1.0d21
+  n_samples   = 100000
+  n_bins      = 80
+  seed        = 54321
+  cdf_file    = 'dd_00_elastic.cdf'
+  output_file = 'collision_histogram.dat'
+/
