@@ -1,0 +1,19 @@
+# Gemini/Agent設定
+.agent/
+.gemini/
+
+# Python仮想環境
+.venv/
+
+# コンパイル生成物
+*.o
+*.mod
+*.out
+*.exe
+simulation.out
+
+# 実行結果
+*.csv
+*.dat
+
+# バイナリ（拡張子なしの実行ファイルは個別に指定）
