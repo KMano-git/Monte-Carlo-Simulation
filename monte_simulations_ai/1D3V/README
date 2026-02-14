@@ -1,0 +1,17 @@
+for monte-carlo simulation with Opus4.5
+
+input.nml
+    init mode = 0; E_initを使用
+    init mode = 1; T_initを使用
+
+gnuplot
+    set datafile separator ","
+    set xlabel "Position x [m]"
+    set ylabel "Energy Deposition [eV]"
+    plot "results.csv" using 1:2 title "CL Method" w l, \
+        "" using 1:3 title "TL Method" w l
+
+results
+    テスト粒子数に応じたエネルギー増減が出力されているため、実際の核融合炉条件と比較する場合は補正が必要
+    具体的には中性粒子フラックスをかける必要がある
+    出力 → 1粒子あたりのプラズマへの寄与に修正済み

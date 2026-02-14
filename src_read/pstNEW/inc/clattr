@@ -1,0 +1,30 @@
+      integer  lattco(0:8), lattwd(0:8)
+      integer  lattst(0:8), lattsy(0:8)
+      common /lattr/ lattco, lattwd,
+     1               lattst, lattsy
+c
+      character lcolt(0:8)*3, ltypt(0:8)*3,
+     1          markt(0:17)*3
+c
+      data lcolt / 'WHI', 'BLU', 'RED', 'MAG',
+     1             'GRE', 'CYA', 'YEL', 'ORA', '   ' /
+      data ltypt / 'SOL', 'DOT', 'DAS', 'SDA',
+     1             'LDA', 'SOC', 'LOC', 'TWC', '   ' /
+      data markt / 'WCI', 'WTR', 'WRE', 'WDI',
+     1             'WDT', 'WST', 'WCR', 'WPL', '   ',
+     2             'BCI', 'BTR', 'BRE', 'BDI',
+     1             'BDT', 'BST', 'BCR', 'BPL', '   ' /
+c
+      integer lcolor(0:8)
+c     data lcolor / 8, 9, 10, 11, 12, 13, 15, 16, 8 /
+      data lcolor / 0, 1, 2, 3, 4, 5, 6, 7, 0 /
+c
+      integer  ldev, ltdev, lsymfg, lpaper
+      common /cmsym/ ldev, ltdev, lsymfg, lpaper
+!
+c ldev  : device   = 1 : VersaTerm,  = 2 : X-lib
+c ltdev : same as ldev, but only trmget & trmput
+c lsymfg : center symbol output flag for Macdraw
+c          = 0: normal  = 1: center symbol  = 2: not output
+c lpapaer : papaer = 1 : Landscape,  = 2 : Portrait
+c

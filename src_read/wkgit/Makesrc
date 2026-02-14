@@ -1,0 +1,58 @@
+## date : 2012/06/22   18:57:27
+## mpi  0  \
+## lib  ../glib/LOD/libGLIB_A.a  \
+## lib  /usr/lib64/libX11.so
+
+include  ./Makeopt
+
+MAKE  = Makefile
+SPNAM = plotf
+SPDIR = ../exe/slimCS10/SPT
+LDNAM = plotf_A
+LDDIR = ../exe/slimCS10/LOD
+
+SRC01 = ./pstNEW
+SRC02 = ./sonic
+SRC03 = ./soldor
+SRC04 = ./monte
+SRC05 = ./gmdisk
+SRC06 = ./dtdegas
+SRC07 = ./ssl2
+SRC08 = ./rand
+SRC09 = ./mplbry
+SRC10 = ./mpsngl
+SRCsv = ./wksvn
+
+OBJ =  $(SRC01)/*.o  $(SRC02)/*.o  $(SRC03)/*.o  $(SRC04)/*.o  $(SRC05)/*.o  $(SRC06)/*.o  \
+       $(SRC07)/*.o  $(SRC08)/*.o  $(SRC09)/*.o  $(SRC10)/*.o  $(SRCsv)/*.o
+##
+origin :
+	perl ../tips/prmobj.pl $(MAKE)
+	perl ./wksvn/mkinfo.pl $(LDDIR)/$(LDNAM)
+	(cd  $(SRC01);  make -f $(MAKE))
+	(cd  $(SRC02);  make -f $(MAKE))
+	(cd  $(SRC03);  make -f $(MAKE))
+	(cd  $(SRC04);  make -f $(MAKE))
+	(cd  $(SRC05);  make -f $(MAKE))
+	(cd  $(SRC06);  make -f $(MAKE))
+	(cd  $(SRC07);  make -f $(MAKE))
+	(cd  $(SRC08);  make -f $(MAKE))
+	(cd  $(SRC09);  make -f $(MAKE))
+	(cd  $(SRC10);  make -f $(MAKE))
+	(cd  $(SRCsv);  make -f $(MAKE))
+	make  -f  $(MAKE)  link
+
+##
+link : $(OBJ)
+	$(FORT)  $(OBJ)  -o  $(LDDIR)/$(LDNAM)  \
+   ../glib/LOD/libGLIB_A.a  \
+   /usr/lib64/libX11.so
+	@ echo
+	@ ls -l $(LDDIR)/$(LDNAM)
+	@ echo
+	perl ../tips/pmkspt.pl $(MAKE)
+
+##
+clean :
+	rm -f $(OBJ)
+

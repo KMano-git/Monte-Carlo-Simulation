@@ -1,0 +1,31 @@
+&simulation
+  n_particles = 10000
+  n_steps     = 10000
+  dt          = 1.0d-8
+  seed        = 12345
+  
+  ! Null Collision法の検証 (CX + Elastic)
+  enable_cx       = .true.
+  enable_elastic  = .true.
+  use_isotropic   = .true.
+  
+  cdf_file = 'dd_00_elastic.cdf'
+/
+
+&plasma_nml
+  n_bg = 1.0d21
+  T_bg = 2.0d0
+/
+
+&particle_init
+  E_init    = 3.0d0  ! 緩和過程を見るため初期値を高く設定
+  T_init    = 2.0d0
+  init_mode = 0
+/
+
+&diagnostics
+  output_interval = 100
+  n_hist_bins     = 100
+  E_hist_min      = 0.0d0
+  E_hist_max      = 150.0d0
+/

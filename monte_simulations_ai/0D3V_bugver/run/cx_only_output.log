@@ -1,0 +1,121 @@
+============================================
+  0D-3V Monte Carlo Simulation
+============================================
+
+  Parameters:
+    n_particles   = 10000
+    n_steps       = 10000
+    dt            =   1.00E-08
+    enable_cx     = T
+    enable_elastic= F
+    n_bg          =   1.00E+21
+    T_bg          =    10.00
+
+  t =   0.0000E+00 s:  E_mean =   100.0000 eV,  T_eff =    66.6667 eV
+  t =   1.0000E-06 s:  E_mean =    10.4698 eV,  T_eff =     6.9798 eV
+  t =   2.0000E-06 s:  E_mean =    10.5603 eV,  T_eff =     7.0402 eV
+  t =   3.0000E-06 s:  E_mean =    10.6285 eV,  T_eff =     7.0856 eV
+  t =   4.0000E-06 s:  E_mean =    10.6291 eV,  T_eff =     7.0860 eV
+  t =   5.0000E-06 s:  E_mean =    10.6062 eV,  T_eff =     7.0708 eV
+  t =   6.0000E-06 s:  E_mean =    10.4520 eV,  T_eff =     6.9680 eV
+  t =   7.0000E-06 s:  E_mean =    10.7100 eV,  T_eff =     7.1400 eV
+  t =   8.0000E-06 s:  E_mean =    10.4946 eV,  T_eff =     6.9964 eV
+  t =   9.0000E-06 s:  E_mean =    10.3553 eV,  T_eff =     6.9035 eV
+  t =   1.0000E-05 s:  E_mean =    10.5055 eV,  T_eff =     7.0037 eV
+  t =   1.1000E-05 s:  E_mean =    10.5363 eV,  T_eff =     7.0242 eV
+  t =   1.2000E-05 s:  E_mean =    10.3622 eV,  T_eff =     6.9082 eV
+  t =   1.3000E-05 s:  E_mean =    10.8017 eV,  T_eff =     7.2011 eV
+  t =   1.4000E-05 s:  E_mean =    10.3342 eV,  T_eff =     6.8894 eV
+  t =   1.5000E-05 s:  E_mean =    10.3152 eV,  T_eff =     6.8768 eV
+  t =   1.6000E-05 s:  E_mean =    10.5261 eV,  T_eff =     7.0174 eV
+  t =   1.7000E-05 s:  E_mean =    10.4360 eV,  T_eff =     6.9574 eV
+  t =   1.8000E-05 s:  E_mean =    10.2064 eV,  T_eff =     6.8043 eV
+  t =   1.9000E-05 s:  E_mean =    10.5959 eV,  T_eff =     7.0640 eV
+  t =   2.0000E-05 s:  E_mean =    10.5703 eV,  T_eff =     7.0469 eV
+  t =   2.1000E-05 s:  E_mean =    10.4782 eV,  T_eff =     6.9854 eV
+  t =   2.2000E-05 s:  E_mean =    10.5071 eV,  T_eff =     7.0047 eV
+  t =   2.3000E-05 s:  E_mean =    10.3456 eV,  T_eff =     6.8971 eV
+  t =   2.4000E-05 s:  E_mean =    10.4382 eV,  T_eff =     6.9588 eV
+  t =   2.5000E-05 s:  E_mean =    10.5214 eV,  T_eff =     7.0143 eV
+  t =   2.6000E-05 s:  E_mean =    10.4434 eV,  T_eff =     6.9623 eV
+  t =   2.7000E-05 s:  E_mean =    10.3532 eV,  T_eff =     6.9021 eV
+  t =   2.8000E-05 s:  E_mean =    10.3903 eV,  T_eff =     6.9268 eV
+  t =   2.9000E-05 s:  E_mean =    10.5092 eV,  T_eff =     7.0061 eV
+  t =   3.0000E-05 s:  E_mean =    10.4716 eV,  T_eff =     6.9811 eV
+  t =   3.1000E-05 s:  E_mean =    10.5024 eV,  T_eff =     7.0016 eV
+  t =   3.2000E-05 s:  E_mean =    10.6966 eV,  T_eff =     7.1311 eV
+  t =   3.3000E-05 s:  E_mean =    10.5896 eV,  T_eff =     7.0598 eV
+  t =   3.4000E-05 s:  E_mean =    10.4368 eV,  T_eff =     6.9579 eV
+  t =   3.5000E-05 s:  E_mean =    10.4961 eV,  T_eff =     6.9974 eV
+  t =   3.6000E-05 s:  E_mean =    10.4063 eV,  T_eff =     6.9375 eV
+  t =   3.7000E-05 s:  E_mean =    10.5571 eV,  T_eff =     7.0381 eV
+  t =   3.8000E-05 s:  E_mean =    10.6211 eV,  T_eff =     7.0807 eV
+  t =   3.9000E-05 s:  E_mean =    10.2096 eV,  T_eff =     6.8064 eV
+  t =   4.0000E-05 s:  E_mean =    10.5688 eV,  T_eff =     7.0459 eV
+  t =   4.1000E-05 s:  E_mean =    10.3804 eV,  T_eff =     6.9202 eV
+  t =   4.2000E-05 s:  E_mean =    10.3437 eV,  T_eff =     6.8958 eV
+  t =   4.3000E-05 s:  E_mean =    10.5188 eV,  T_eff =     7.0126 eV
+  t =   4.4000E-05 s:  E_mean =    10.5628 eV,  T_eff =     7.0419 eV
+  t =   4.5000E-05 s:  E_mean =    10.4794 eV,  T_eff =     6.9862 eV
+  t =   4.6000E-05 s:  E_mean =    10.4028 eV,  T_eff =     6.9352 eV
+  t =   4.7000E-05 s:  E_mean =    10.5812 eV,  T_eff =     7.0541 eV
+  t =   4.8000E-05 s:  E_mean =    10.6980 eV,  T_eff =     7.1320 eV
+  t =   4.9000E-05 s:  E_mean =    10.5043 eV,  T_eff =     7.0029 eV
+  t =   5.0000E-05 s:  E_mean =    10.5226 eV,  T_eff =     7.0151 eV
+  t =   5.1000E-05 s:  E_mean =    10.4257 eV,  T_eff =     6.9504 eV
+  t =   5.2000E-05 s:  E_mean =    10.5382 eV,  T_eff =     7.0255 eV
+  t =   5.3000E-05 s:  E_mean =    10.4974 eV,  T_eff =     6.9983 eV
+  t =   5.4000E-05 s:  E_mean =    10.4901 eV,  T_eff =     6.9934 eV
+  t =   5.5000E-05 s:  E_mean =    10.3370 eV,  T_eff =     6.8913 eV
+  t =   5.6000E-05 s:  E_mean =    10.5623 eV,  T_eff =     7.0415 eV
+  t =   5.7000E-05 s:  E_mean =    10.3812 eV,  T_eff =     6.9208 eV
+  t =   5.8000E-05 s:  E_mean =    10.3573 eV,  T_eff =     6.9049 eV
+  t =   5.9000E-05 s:  E_mean =    10.4271 eV,  T_eff =     6.9514 eV
+  t =   6.0000E-05 s:  E_mean =    10.3980 eV,  T_eff =     6.9320 eV
+  t =   6.1000E-05 s:  E_mean =    10.3755 eV,  T_eff =     6.9170 eV
+  t =   6.2000E-05 s:  E_mean =    10.4186 eV,  T_eff =     6.9458 eV
+  t =   6.3000E-05 s:  E_mean =    10.5531 eV,  T_eff =     7.0354 eV
+  t =   6.4000E-05 s:  E_mean =    10.4764 eV,  T_eff =     6.9843 eV
+  t =   6.5000E-05 s:  E_mean =    10.4973 eV,  T_eff =     6.9982 eV
+  t =   6.6000E-05 s:  E_mean =    10.5639 eV,  T_eff =     7.0426 eV
+  t =   6.7000E-05 s:  E_mean =    10.4557 eV,  T_eff =     6.9704 eV
+  t =   6.8000E-05 s:  E_mean =    10.3995 eV,  T_eff =     6.9330 eV
+  t =   6.9000E-05 s:  E_mean =    10.5845 eV,  T_eff =     7.0564 eV
+  t =   7.0000E-05 s:  E_mean =    10.4810 eV,  T_eff =     6.9874 eV
+  t =   7.1000E-05 s:  E_mean =    10.3638 eV,  T_eff =     6.9092 eV
+  t =   7.2000E-05 s:  E_mean =    10.7125 eV,  T_eff =     7.1417 eV
+  t =   7.3000E-05 s:  E_mean =    10.4426 eV,  T_eff =     6.9617 eV
+  t =   7.4000E-05 s:  E_mean =    10.4090 eV,  T_eff =     6.9393 eV
+  t =   7.5000E-05 s:  E_mean =    10.4439 eV,  T_eff =     6.9626 eV
+  t =   7.6000E-05 s:  E_mean =    10.4146 eV,  T_eff =     6.9431 eV
+  t =   7.7000E-05 s:  E_mean =    10.4248 eV,  T_eff =     6.9499 eV
+  t =   7.8000E-05 s:  E_mean =    10.5611 eV,  T_eff =     7.0407 eV
+  t =   7.9000E-05 s:  E_mean =    10.5556 eV,  T_eff =     7.0371 eV
+  t =   8.0000E-05 s:  E_mean =    10.3427 eV,  T_eff =     6.8951 eV
+  t =   8.1000E-05 s:  E_mean =    10.5894 eV,  T_eff =     7.0596 eV
+  t =   8.2000E-05 s:  E_mean =    10.5507 eV,  T_eff =     7.0338 eV
+  t =   8.3000E-05 s:  E_mean =    10.4443 eV,  T_eff =     6.9629 eV
+  t =   8.4000E-05 s:  E_mean =    10.4912 eV,  T_eff =     6.9941 eV
+  t =   8.5000E-05 s:  E_mean =    10.5767 eV,  T_eff =     7.0511 eV
+  t =   8.6000E-05 s:  E_mean =    10.4502 eV,  T_eff =     6.9668 eV
+  t =   8.7000E-05 s:  E_mean =    10.5544 eV,  T_eff =     7.0363 eV
+  t =   8.8000E-05 s:  E_mean =    10.1989 eV,  T_eff =     6.7993 eV
+  t =   8.9000E-05 s:  E_mean =    10.6509 eV,  T_eff =     7.1006 eV
+  t =   9.0000E-05 s:  E_mean =    10.2360 eV,  T_eff =     6.8240 eV
+  t =   9.1000E-05 s:  E_mean =    10.4213 eV,  T_eff =     6.9475 eV
+  t =   9.2000E-05 s:  E_mean =    10.5160 eV,  T_eff =     7.0106 eV
+  t =   9.3000E-05 s:  E_mean =    10.2429 eV,  T_eff =     6.8286 eV
+  t =   9.4000E-05 s:  E_mean =    10.4526 eV,  T_eff =     6.9684 eV
+  t =   9.5000E-05 s:  E_mean =    10.5458 eV,  T_eff =     7.0305 eV
+  t =   9.6000E-05 s:  E_mean =    10.4823 eV,  T_eff =     6.9882 eV
+  t =   9.7000E-05 s:  E_mean =    10.2571 eV,  T_eff =     6.8381 eV
+  t =   9.8000E-05 s:  E_mean =    10.4329 eV,  T_eff =     6.9553 eV
+  t =   9.9000E-05 s:  E_mean =    10.4774 eV,  T_eff =     6.9849 eV
+  t =   1.0000E-04 s:  E_mean =    10.5534 eV,  T_eff =     7.0356 eV
+
+  Simulation completed!
+  Final E_mean =    10.5534 eV
+  Final T_eff  =     7.0356 eV
+  Target T_bg  =    10.0000 eV
+
+============================================

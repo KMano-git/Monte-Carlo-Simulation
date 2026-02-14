@@ -1,0 +1,16 @@
+for monte carlo simulation one particle
+
+seed < 0 : random seed
+seed >= 0 : fixed seed
+
+histogram_input.nml
+    E_neutral < 0 : Maxwell distribution
+    E_neutral >= 0 : fixed energy
+
+hist/
+    collision_histogram_E*.dat : collision energy transfer histogram
+    all_histograms.png : all histogram plot
+
+    各エネルギー状態におけるヒストグラムを出力し、どの状態で、荷電交換と弾性衝突の差がでてしまうのかを検証したかった。
+    細かいところに原因があるのか、全体の特性として加熱冷却が分かれるのか。
+    histogramでは1つの中性粒子の衝突頻度分布を出している

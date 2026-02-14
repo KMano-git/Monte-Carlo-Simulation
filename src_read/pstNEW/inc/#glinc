@@ -1,0 +1,42 @@
+      implicit real (c)
+
+!     kgsiz move from glopt
+      integer, parameter :: kgsiz = 10
+c
+      parameter (ndt=2000*kgsiz+10)
+      common /cgcomm/ npen,clx,cly,cox,coy,plx,ply,
+     >                cpx1,cpx2,cpy1,cpy2,
+     >                cfhl,cfhl2,cfhn,cfhn2,cfhn3,cfhh,cfh2,cfhw,hsiz,
+     >                axln,ayln,axlmin,aylmin
+      common /cgsymb/ chsy(6),chsy2,chsy3,chssx(10),chssy(10)
+      common /cgdata/ cxd(ndt),cyd(ndt),icd(ndt),ncd
+      common /cgpen/  ipn0
+      common /cgadm/  lgadm
+      common /cgftn/  nfgfm,nfgad,nfg6
+      common /cgpage/ lpage
+c
+c::g-mode/tss-mode
+      common /cgmode/ kmod,kmodb,ktss,ksout,kpout
+c
+c::line characteristics
+      common /cglknd/ iltyp(7),ictyp(7),iptyp(7)
+c
+c::option
+      common /cgoptn/ isci
+c
+c::legend
+      parameter (ndlin=100,ndpnt=20, ndpnt2=ndpnt+5)
+      common /cgline/ lnnum,lnpnt,lnpen(10),lnmrk(10)
+      common /cglpen/ ipensv(ndlin)
+      character cmtsv*18
+      common /cglcmt/ cmtsv(ndlin)
+      common /cgldat/ cxdsv(ndpnt,ndlin),cydsv(ndpnt,ndlin),npsv(ndlin)
+c
+      character faxs*50
+      common /cgaxit/ faxs(0:2)
+c     common /cgaxis/ fsmi(0:2),fsma(0:2),kaxs(0:2),laxs(0:2) 11/22/2001
+      common /cgaxis/ fsmi(0:2),fsma(0:2),kaxs(0:2),laxs(0:2),lasc(0:2)
+c
+      common /cgrsiz/ corgx(25),corgy(25),fcorg,korg,korgmx
+      common /cmkal/ lxlog, lylog(2), lkalop, lkaler
+c    >             , macfl

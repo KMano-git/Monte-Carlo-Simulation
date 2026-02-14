@@ -1,0 +1,106 @@
+[!----------------------------------------------------------------------
+!     planet : /home/shimizu/Gmesh/soc/gmtrc/mdfreg.f
+!----------------------------------------------------------------------
+!
+!    (npmax)     variables in file mshdsk
+!      mpax   ........... +-------------------------+                
+!                         !                         !                
+!                         !                         !                
+!      mpw2  /+^^^^^^^^^+ !      Main Plasma        ! +^^^^^^^^^+/    
+!            /!         ! !                         ! !         !/    
+!      mpsp  /!---------! !-------------------------! !---------!/    
+!            /!  OUT    ! !                         ! !  IN     !/    
+!            /!   DIV   ! !      Scrape-Off         ! !   DIV   !/    
+!            /!         ! !                         ! !         !/    
+!      mpw1  /+^^^^^^^^^^ ^^^^^^^^^^^^^^^^^^^^^^^^^^^ ^^^^^^^^^^!/
+!       =1
+!             m         m m                         m m         m
+!   ip A      q         q q                         q q         q
+!      !      d         x s                         s x         d
+!      !--->  1         1 1                         2 2         2
+!         iq                                                 (nqmax)    
+!----------------------------------------------------------------------
+!
+!   grid point name in metric calculation
+!
+!                         +-iaxs--------------------+                
+!                         !                         !
+!                         !~impl~~~~~~~~~~~~~~~~~~~~!                
+!      iwl2  /+^^^^^^^^^+ !                         ! +^^^^^^^^^+/    
+!            /!         ! !     Main Plasma         ! !         !/    
+!      ispx  /!---------! !-------------------------! !---------!/    
+!            /!  OUT    ! !                         ! !  IN     !/    
+!            /!   DIV   ! !      Scrape-Off         ! !   DIV   !/    
+!            /!         ! !                         ! !         !/    
+!      iwl1  /+^^^^^^^^^^ ^^^^^^^^^^^^^^^^^^^^^^^^^^^ ^^^^^^^^^^!/
+!             j         j j                         j j         j
+!             d         x s                         s x         d
+!   i  A      p         p l                         l p         p
+!      !      1         1 1                         2 2         2
+!      ----> j                                                      
+!    
+!   cell name in metric calculation
+!
+!                       +icaxs--------------------+                
+!                       !                         !
+!                       !icmpe~~~~~~~icmax(jc)~~~~!                
+!      icwl2 /+^^^^^^^^^+                         +^^^^^^^^^+/    
+!            /!  (4)    !icmps  Main plasma (6)   !    (5)  !/    
+!            /!---------!-------------------------!---------!/    
+!      icspx /!  OUT    !                         !  IN     !/    
+!            /!   DIV   !      Scrape-Off         !   DIV   !/    
+!            /!  (1)    !                  (2)    !    (3)  !/    
+!   A  icwl1 /j+^^^^^^^j^^^^^^^^^^^^^icmin(jc)^^^^^j^^^^^^^^j j
+! i !         c        c                           c        c c
+! c !         d        x                           x        d m
+!   !-->    1=p        p                           p        p=a 
+!     jc      1        1                           2        2 x
+!    
+!                do jc = 1, jcmax                ir = kreg(jc,ic)
+!                do ic = icmin(jc), icmax(jc)
+!
+!
+!   tube name in metric calculation
+!                       +-------------------------+                
+!                       !                         ! itmax    
+!                       !itmpe~~~~~~~~~~~~~~~~~~~~!               
+!      itpve /+^^^^^^^^^+        Main Plasma      +^^^^^^^^^+/    
+!      itpvs /!         !itmps                    !         !/    
+!            /!---------!-------------------------!---------!/    
+!      itsle /!  OUT    !                         !  IN     !/    
+!            /!   DIV   !      Scrape-Off         !   DIV   !/    
+!   A        /!         !                         !         !/    
+! i !  itsls /!+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^!/ 
+! t !        jtmin(it)                                jtmax(it)
+!   !--> jt                jc = jcel(jt,it)
+!                          ic = icel(jt,it)      ir = kreg(jc,ic)
+!
+!  (1) LOOP X-direction            Y-direction
+!
+!    do it = 1, itmax                  do jc = 1, jcmax
+!                                         
+!      do jt = jtmin(it), jtmax(it)      do ic = icmin(jc),icmax(jc)
+!        ic  = icel(jt,it)
+!        jc  = jcel(jt,it)                
+!        jcp = jcel(jt+1,it)  jt<jtmax     jcp = jnxp(jc,ic)  jc<jcmax
+!        jcm = jcel(jt-1,it)  jt>jtmin     jcm = jnxm(jc,ic)  jc>1
+!
+!
+!  (2) grid point of cell corner
+!
+!       D---------C   Xa = grdx(kgdx(jc,ic,1),kgdy(jc,ic,1))
+!       |         |   Ya = grdy(kgdx(jc,ic,1),kgdy(jc,ic,1))
+!       | (jc,ic) | 
+!       |         |   A : (jc,ic,1),  B : (jc,ic,2)  
+!       A---------B   C : (jc,ic,3),  D : (jc,ic,4)
+!                    
+!  (3) field
+!                      ja = kgdx(jc,ic,1), ia = kgdy(jc,ic,1)
+!       D----s----C  
+!       |         |     Br at p-point  hbr(ja,ia)
+!       p         q     Br at r-point  gbr(ja,ia)
+!       |         |    
+!       A----r----B     Br at q-point  hbr(jb,ib)
+!                       Br at s-point  gbr(jd,id)
+!
+!----------------------------------------------------------------------
