@@ -28,7 +28,8 @@ program main
    real(dp) :: time
    real(dp) :: delta_E_total, delta_E_cx_total, delta_E_el_total
    real(dp) :: delta_E_cx, delta_E_el
-   real(dp) :: weight  ! 1計算粒子あたりの重み
+   real(dp) :: weight    ! 1計算粒子あたりの重み
+   real(dp) :: domain_L  ! ドメイン長さ [m]
 
    integer :: i, istep, ihist, n_alive, n_injected
    integer :: ierr
@@ -69,12 +70,15 @@ program main
    write(*,'(A,I8)')     '  n_inject_per_step   = ', sim%n_inject_per_step
    write(*,'(A,ES12.4)') '  Weight per particle = ', weight
    write(*,'(A,I8)')     '  n_particles (max)   = ', sim%n_particles
-   write(*,'(A,F8.4,A,F8.4)') '  Domain: [', sim%x_min, ', ', sim%x_max
+   write(*,'(A,F8.4,A,F8.4,A)') '  Domain: [', sim%x_min, ', ', sim%x_max, ']'
    write(*,*)
+
+   ! ドメイン長さ
+   domain_L = sim%x_max - sim%x_min
 
    ! 出力ファイルオープン
    open(unit=unit_ntscrg, file=trim(sim%output_ntscrg), status='replace')
-   write(unit_ntscrg, '(A)') 'time[s],n_alive,delta_E_total[J],delta_E_cx[J],delta_E_el[J],n_injected'
+   write(unit_ntscrg, '(A)') 'time[s],n_alive,Q_total[W/m3],Q_cx[W/m3],Q_el[W/m3],n_injected'
 
    ! 初期ヒストグラム出力（ファイル初期化）
    open(unit=20, file=trim(sim%output_hist), status='replace')
@@ -102,7 +106,7 @@ program main
       call inject_particles(particles, sim%n_particles, sim, init_p, weight, n_injected)
 
       !----------------------------------------------------------------------
-      ! Step 2: 位置更新 + 境界判定
+      ! Step 2: 位置更新 + 境��判定
       !----------------------------------------------------------------------
       do i = 1, sim%n_particles
          if (.not. particles(i)%alive) cycle
@@ -148,10 +152,16 @@ program main
       end do
 
       !----------------------------------------------------------------------
-      ! Step 5: ntscrg.csv 出力
+      ! Step 5: ntscrg.csv 出力（単位体積あたりパワー密度 [W/m³]）
+      ! Q = delta_E_total [J] / (dt [s] * L [m])
+      ! 符号: 正 = 中性粒子が受け取る = イオンが失う
       !----------------------------------------------------------------------
       write(unit_ntscrg,'(ES15.6E3,",",I0,",",ES15.6E3,",",ES15.6E3,",",ES15.6E3,",",I0)') &
-         time, n_alive, delta_E_total, delta_E_cx_total, delta_E_el_total, n_injected
+         time, n_alive, &
+         delta_E_total    / (sim%dt * domain_L), &
+         delta_E_cx_total / (sim%dt * domain_L), &
+         delta_E_el_total / (sim%dt * domain_L), &
+         n_injected
 
       !----------------------------------------------------------------------
       ! Step 6: ヒストグラム出力
