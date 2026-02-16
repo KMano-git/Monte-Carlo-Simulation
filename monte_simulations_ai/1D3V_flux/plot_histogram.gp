@@ -1,69 +1,74 @@
 # Gnuplot script for 1D3V Flux Monte Carlo Simulation
-# Usage: gnuplot plot_histogram.gp
+# Usage:
+#   bash preprocess.sh      (CSVを2列形式に変換)
+#   gnuplot plot_histogram.gp
+#
+# 4パネル: (a)粒子数, (b)エネルギー交換, (c)エネルギー分布, (d)位置分布
 
-set terminal pngcairo size 1200,800 enhanced font 'Arial,12'
+set terminal pngcairo size 1400,1000 enhanced font 'Arial,11'
+set output 'simulation_results.png'
 set datafile separator ","
 
+set multiplot layout 2,2 title '1D3V Monte Carlo Simulation (Flux Model)' font ',16'
+
 #==============================================================================
-# Plot 1: 生存粒子数の時間変化
+# (a) Alive Particle Count vs Time
 #==============================================================================
-set output 'n_alive_vs_time.png'
-set title '生存粒子数の時間変化' font ',14'
-set xlabel 'Time [s]'
+set title '(a) Alive Particle Count vs Time' font ',13'
+set xlabel 'Time [us]'
 set ylabel 'N alive'
 set grid
-plot 'run/ntscrg.csv' using 1:2 with lines lw 2 title 'N alive' lc rgb '#0066CC'
+set key off
+plot 'run/ntscrg.csv' using ($1*1e6):2 every ::1 with lines lw 2 lc rgb '#0066CC'
 
 #==============================================================================
-# Plot 2: エネルギー交換の時間変化
+# (b) Energy Exchange vs Time
 #==============================================================================
-set output 'energy_exchange_vs_time.png'
-set title 'エネルギー交換量の時間変化' font ',14'
-set xlabel 'Time [s]'
-set ylabel 'ΔE [J]'
+set title '(b) Energy Exchange vs Time' font ',13'
+set xlabel 'Time [us]'
+set ylabel 'dE [J]'
 set grid
-plot 'run/ntscrg.csv' using 1:3 with lines lw 2 title 'Total ΔE' lc rgb '#CC0000', \
-     'run/ntscrg.csv' using 1:4 with lines lw 2 title 'CX ΔE' lc rgb '#00CC00', \
-     'run/ntscrg.csv' using 1:5 with lines lw 2 title 'EL ΔE' lc rgb '#0000CC'
+set key top right
+plot 'run/ntscrg.csv' using ($1*1e6):3 every ::1 smooth csplines lw 2 lc rgb '#CC0000' title 'Total', \
+     'run/ntscrg.csv' using ($1*1e6):4 every ::1 smooth csplines lw 2 lc rgb '#00AA00' title 'CX', \
+     'run/ntscrg.csv' using ($1*1e6):5 every ::1 smooth csplines lw 2 lc rgb '#0000CC' title 'Elastic'
 
 #==============================================================================
-# Plot 3: エネルギーヒストグラム（最終ステップ）
+# (c) Energy Distribution Evolution
+# preprocess.sh で生成した /tmp/ehist_*.dat を使用
 #==============================================================================
-set output 'energy_histogram.png'
-set title 'エネルギー分布（各タイミング）' font ',14'
+set title '(c) Energy Distribution Evolution' font ',13'
 set xlabel 'Energy [eV]'
 set ylabel 'Count'
 set grid
 set key top right
+set xrange [0:15]
+set autoscale y
+set datafile separator whitespace
 
-# エネルギーヒストグラムのCSV各行から読み取る
-# 行番号でステップを区別
-# 列: step, E_min, E_max, bin_width, n_alive, bin_1, bin_2, ...
-# ビン中心 = E_min + (column_index - 5.5) * bin_width
-
-# 個別のステップをプロットするにはawkで行を抽出
-# 最後の行（最終ステップ）のエネルギーヒストグラム
-stats 'run/energy_hist.csv' nooutput
-N = STATS_records
-set xrange [0:20]
-
-plot for [row=2:N+1] 'run/energy_hist.csv' using (($2 + (column-5-0.5)*$4)):column every ::row-1::row-1 \
-     with lines lw 2 title sprintf('row %d', row)
+plot '/tmp/ehist_2.dat' using 1:2 with lines lw 2 lc rgb '#66AADD' title 'step=100', \
+     '/tmp/ehist_3.dat' using 1:2 with lines lw 2 lc rgb '#3388BB' title 'step=500', \
+     '/tmp/ehist_4.dat' using 1:2 with lines lw 2 lc rgb '#116699' title 'step=1000', \
+     '/tmp/ehist_5.dat' using 1:2 with lines lw 2 lc rgb '#CC3333' title 'step=2000', \
+     '/tmp/ehist_6.dat' using 1:2 with lines lw 2 lc rgb '#880000' title 'step=5000'
 
 #==============================================================================
-# Plot 4: 位置分布（最終ステップ）
+# (d) Position Distribution Evolution
+# preprocess.sh で生成した /tmp/phist_*.dat を使用
 #==============================================================================
-set output 'position_distribution.png'
-set title '位置分布（各タイミング）' font ',14'
-set xlabel 'Position [m]'
+set title '(d) Position Distribution Evolution' font ',13'
+set xlabel 'Position [cm]'
 set ylabel 'Count'
 set grid
+set key top right
 set autoscale x
+set autoscale y
 
-stats 'run/statx.csv' nooutput
-N = STATS_records
+plot '/tmp/phist_2.dat' using 1:2 with lines lw 2 lc rgb '#66AADD' title 'step=100', \
+     '/tmp/phist_3.dat' using 1:2 with lines lw 2 lc rgb '#3388BB' title 'step=500', \
+     '/tmp/phist_4.dat' using 1:2 with lines lw 2 lc rgb '#116699' title 'step=1000', \
+     '/tmp/phist_5.dat' using 1:2 with lines lw 2 lc rgb '#CC3333' title 'step=2000', \
+     '/tmp/phist_6.dat' using 1:2 with lines lw 2 lc rgb '#880000' title 'step=5000'
 
-plot for [row=2:N+1] 'run/statx.csv' using (($2 + (column-5-0.5)*$4)):column every ::row-1::row-1 \
-     with lines lw 2 title sprintf('row %d', row)
-
-print "Plots generated successfully!"
+unset multiplot
+print "Saved: simulation_results.png"

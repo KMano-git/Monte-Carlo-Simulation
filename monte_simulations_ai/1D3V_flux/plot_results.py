@@ -89,7 +89,7 @@ if len(dE_total_arr) > window:
     ax.plot(t_ma * 1e6, dE_cx_ma, color='#00AA00', linewidth=1.5, label='CX')
     ax.plot(t_ma * 1e6, dE_el_ma, color='#0000CC', linewidth=1.5, label='Elastic')
 ax.set_xlabel('Time [us]')
-ax.set_ylabel('dE [J] (50-step avg)')
+ax.set_ylabel('Q [W/m3] (50-step avg)')
 ax.set_title('(b) Energy Exchange vs Time')
 ax.legend(fontsize=10)
 ax.grid(True, alpha=0.3)
