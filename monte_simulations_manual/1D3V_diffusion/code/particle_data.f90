@@ -8,7 +8,6 @@ module particle_data
 
    !粒子データ構造体
    type :: particle_t
-      real(dp) :: x          !位置 [m]
       real(dp) :: vx, vy, vz !速度 [m/s]
       logical  :: alive      !生存フラグ（電離で消滅時にfalse）
    end type particle_t
@@ -18,9 +17,6 @@ module particle_data
       integer  :: n_particles !粒子数
       integer  :: n_steps     !ステップ数
       real(dp) :: dt          !時間刻み [s]
-      integer  :: n_grid      !位置グリッド数
-      real(dp) :: x_min       !位置最小値 [m]
-      real(dp) :: x_max       !位置最大値 [m]
       integer  :: seed        !乱数シード
       logical  :: enable_cx   !荷電交換 On/Off
       logical  :: enable_el   !弾性散乱 On/Off
@@ -29,7 +25,7 @@ module particle_data
       character(len=256) :: cdf_file !CDFファイル名
       character(len=256) :: output_ntscrg !エネルギー増減出力ファイル名
       character(len=256) :: output_hist !エネルギーヒストグラム出力ファイル名
-      character(len=256) :: output_statx !ログ出力ファイル名
+      character(len=256) :: output_log !ログ出力ファイル名
    end type sim_params
 
    !プラズマパラメータ型

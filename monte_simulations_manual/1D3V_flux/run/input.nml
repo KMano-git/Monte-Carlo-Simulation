@@ -3,6 +3,9 @@
     n_particles = 100000    !粒子数
     n_steps     = 1000    !ステップ数
     dt          = 1.0d-8   !時間刻み [s]
+    n_grid      = 100      !位置グリッド数
+    x_min       = 0.0d0    !位置最小値 [m]
+    x_max       = 0.1d0    !位置最大値 [m]
     seed        = 12345       !乱数シード
     
     enable_cx     = .true.
@@ -13,7 +16,7 @@
     cdf_file      = 'dd_00_elastic.cdf' !CDFファイル !更新後
     output_ntscrg = 'ntscrg.csv'        !エネルギー増減出力ファイル
     output_hist   = 'energy_hist.csv'   !エネルギーヒストグラム出力ファイル
-    output_log    = 'log.txt'           !ログ出力ファイル
+    output_statx  = 'statx.csv'         !位置ごとの統計量出力ファイル
 /
 
 !背景プラズマ条件
@@ -27,13 +30,13 @@
 
 !粒子初期条件
 &particle_init
-    n_init   = 5.0d19  !粒子密度 [m^-3]
+    gamma_in = 1.0d23  !粒子フラックス [m^-3]
     E_init   = 3.0d0   !初期エネルギー [eV]
     T_init   = 2.0d0   !初期温度 [eV]
     init_mode = 0      !粒子初期分布(0: mono, 1: maxwell)
 /
 
-!出力条件
+!energy_histogram の出力条件
 &diagnostics
     output_interval = 100  !出力間隔
     n_hist_bins     = 400  !ヒストグラム分割数
