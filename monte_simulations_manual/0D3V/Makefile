@@ -47,7 +47,7 @@ $(MODDIR)/%.o: $(SRCDIR)/%.f90
 
 # Dependencies (module dependencies)
 $(MODDIR)/particle_data.o: $(MODDIR)/constants.o
-$(MODDIR)/random_utils.o: $(MODDIR)/constants.o
+$(MODDIR)/random_utils.o: $(MODDIR)/constants.o $(MODDIR)/particle_data.o
 $(MODDIR)/cdf_reader.o: $(MODDIR)/constants.o
 $(MODDIR)/cross_sections.o: $(MODDIR)/constants.o $(MODDIR)/cdf_reader.o
 $(MODDIR)/check_coll.o: $(MODDIR)/constants.o $(MODDIR)/particle_data.o $(MODDIR)/random_utils.o $(MODDIR)/cross_sections.o

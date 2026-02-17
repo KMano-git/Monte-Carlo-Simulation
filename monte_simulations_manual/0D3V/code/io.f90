@@ -22,7 +22,7 @@ contains
       namelist /simulation/ n_particles, n_steps, dt, seed, &
          enable_cx, enable_el, enable_ei, use_isotropic, &
          cdf_file, output_ntscrg, output_hist, output_log
-      namelist /plasma_nml/ n_i, T_i, n_e, T_e
+      namelist /plasma_nml/ n_i, T_i, n_e, T_e, u_x, u_y, u_z
       namelist /particle_init/ E_init, T_init, n_init, init_mode
       namelist /diagnostics/ output_interval, n_hist_bins, E_hist_min, E_hist_max, hist_timing
 
@@ -44,6 +44,9 @@ contains
       real(dp) :: T_i = 10.0d0
       real(dp) :: n_e = 1.0d21
       real(dp) :: T_e = 10.0d0
+      real(dp) :: u_x = 0.0d0
+      real(dp) :: u_y = 0.0d0
+      real(dp) :: u_z = 0.0d0
 
       real(dp) :: E_init = 100.0d0
       real(dp) :: T_init = 2.0d0
@@ -94,6 +97,9 @@ contains
       plasma%T_i = T_i
       plasma%n_e = n_e
       plasma%T_e = T_e
+      plasma%u_x = u_x
+      plasma%u_y = u_y
+      plasma%u_z = u_z
 
       init_p%E_init = E_init
       init_p%T_init = T_init
@@ -235,7 +241,7 @@ contains
       do i = 1, n_particles
          if (particles(i)%alive) then
             n_alive = n_alive + 1
-            ! 粒子のエネルギー[eV]
+            ! 粒子のエネルギ���[eV]
             E_i = 0.5d0 * M_D_kg * (particles(i)%vx**2 + particles(i)%vy**2 + particles(i)%vz**2) * J_TO_EV
             E_sum = E_sum + E_i
             E2_sum = E2_sum + E_i**2

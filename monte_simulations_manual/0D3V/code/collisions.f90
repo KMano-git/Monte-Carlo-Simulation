@@ -5,7 +5,7 @@
 module collisions
    use constants, only: dp, M_D_kg, EV_TO_J, J_TO_EV, PI
    use particle_data, only: particle_t, plasma_params
-   use random_utils, only: sample_maxwell_velocity
+   use random_utils, only: sample_maxwell_velocity ! no use
    use cdf_reader, only: sample_scattering_angle
    use cross_sections, only: sigma_cx, sigma_ei, sigma_el, get_all_cross_sections
    implicit none
