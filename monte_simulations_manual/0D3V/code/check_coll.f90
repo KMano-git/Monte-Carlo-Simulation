@@ -5,7 +5,7 @@
 module check_coll
    use constants, only: dp, M_D_kg, PI, E_IONIZE_THRESHOLD, EV_TO_J, J_TO_EV
    use particle_data, only: particle_t, sim_params, plasma_params
-   use random_utils, only: sample_maxwell_velocity
+   use random_utils, only: sample_maxwell_velocity_ion
    use cross_sections, only: get_all_cross_sections
    implicit none
 
@@ -46,7 +46,7 @@ contains
 
       ! 相対速度の最大値を推定する
       v_th_i = sqrt(plasma%T_i * EV_TO_J / M_D_kg)
-      v_rel_max = v_mag + 20.0d0 * v_th_i
+      v_rel_max = v_mag + sqrt(plasma%u_x**2 + plasma%u_y**2 + plasma%u_z**2) + 20.0d0 * v_th_i
       E_rel_max = 0.25d0 * M_D_kg * v_rel_max * v_rel_max * J_TO_EV
       ! v_rel_max における断面積の最大値
       call get_all_cross_sections(E_rel_max, sigma_cx, sigma_el, sigma_ei, sigma_max)
@@ -62,7 +62,7 @@ contains
       if (r > P_coll) return
 
       ! 背景粒子のサンプリング
-      call sample_maxwell_velocity(plasma%T_i, vx_i, vy_i, vz_i)
+      call sample_maxwell_velocity_ion(plasma%T_i, plasma, vx_i, vy_i, vz_i)
 
       ! 相対速度
       v_rel = sqrt((p%vx-vx_i)**2 + (p%vy-vy_i)**2 + (p%vz-vz_i)**2)

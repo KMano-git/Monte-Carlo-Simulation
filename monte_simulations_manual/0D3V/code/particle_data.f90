@@ -34,6 +34,7 @@ module particle_data
       real(dp) :: T_i !背景イオン温度 [eV]
       real(dp) :: n_e !背景電子密度 [m^-3]
       real(dp) :: T_e !背景電子温度 [eV]
+      real(dp) :: u_x, u_y, u_z !背景イオン流速
    end type plasma_params
 
    !粒子初期条件型
