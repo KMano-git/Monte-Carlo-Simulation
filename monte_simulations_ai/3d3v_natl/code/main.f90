@@ -58,6 +58,10 @@ program monte_carlo_3d3v_natl
    real(dp) :: delta_E_l
    type(score_data) :: my_score
 
+   !時間計測用
+   integer :: count_start, count_end, count_rate
+   real(dp) :: time_sec
+
    !---------------------------------------------------------------------------
    ! 初期化
    !---------------------------------------------------------------------------
@@ -96,6 +100,8 @@ program monte_carlo_3d3v_natl
    !---------------------------------------------------------------------------
    write(*,'(A)') ''
    write(*,'(A)') 'Starting simulation...'
+
+   call system_clock(count_start, count_rate)
 
    do istep = 1, sim%n_steps
 
@@ -222,6 +228,10 @@ program monte_carlo_3d3v_natl
       end if
 
    end do
+
+   call system_clock(count_end)
+   time_sec = real(count_end - count_start, dp) / real(count_rate, dp)
+   write(*,'(A,F12.4,A)') 'Elapsed time: ', time_sec, ' seconds'
 
    !---------------------------------------------------------------------------
    ! 最終出力
