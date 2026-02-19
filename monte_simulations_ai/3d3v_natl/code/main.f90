@@ -83,7 +83,7 @@ program monte_carlo_3d3v_natl
 
    !粒子配列の確保・初期化
    allocate(particles(sim%n_particles))
-   call initialize_particles(particles, sim%n_particles, init_p)
+   call initialize_particles(particles, sim%n_particles, init_p, sim%seed)
 
    !スコアデータ初期化
    score%cl_ei = 0.0d0; score%cl_cx = 0.0d0; score%cl_el = 0.0d0

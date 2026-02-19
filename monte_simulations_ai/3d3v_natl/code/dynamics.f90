@@ -5,7 +5,7 @@
 module dynamics
    use constants, only: dp, M_D_kg, EV_TO_J, J_TO_EV, PI
    use data_types, only: particle_t, plasma_params, sim_params
-   use random_utils, only: sample_maxwell_velocity_ion
+   use random_utils, only: sample_maxwell_velocity_ion, random_double
    use cross_sections, only: sigma_cx, sigma_el, sigma_v_max, &
       ionization_rate_coeff
    use cdf_reader, only: sample_scattering_angle
@@ -67,7 +67,7 @@ contains
    subroutine check_collision_nonanalog(p, plasma, sim, dt, &
       vx_i, vy_i, vz_i, &
       v_rel, E_rel, coll_type)
-      type(particle_t), intent(in)  :: p
+      type(particle_t), intent(inout)  :: p
       type(plasma_params), intent(in) :: plasma
       type(sim_params), intent(in) :: sim
       real(dp), intent(in)  :: dt
@@ -93,11 +93,11 @@ contains
       P_coll = 1.0d0 - exp(-nu_max * dt)
 
       !衝突判定
-      call random_number(r)
+      r = random_double(p%rng)
       if (r > P_coll) return
 
       !背景イオン速度のサンプリング
-      call sample_maxwell_velocity_ion(plasma%T_i, plasma, vx_i, vy_i, vz_i)
+      call sample_maxwell_velocity_ion(p%rng, plasma%T_i, plasma, vx_i, vy_i, vz_i)
 
       !相対速度
       v_rel = sqrt((p%vx - vx_i)**2 + (p%vy - vy_i)**2 + (p%vz - vz_i)**2)
@@ -116,11 +116,11 @@ contains
       !安全策: P_accept > 1 の場合（理論上は起きないはず）
       if (P_accept > 1.0d0) P_accept = 1.0d0
 
-      call random_number(r_accept)
+      r_accept = random_double(p%rng)
       if (r_accept > P_accept) return
 
       !CX/EL衝突タイプの選択
-      call random_number(r_type)
+      r_type = random_double(p%rng)
       if (sig_s > 1.0d-30) then
          if (r_type < sig_cx_val / sig_s .and. sim%enable_cx) then
             coll_type = COLL_CX
@@ -159,6 +159,7 @@ contains
       real(dp), intent(in)  :: vx_i, vy_i, vz_i
       logical, intent(in)   :: use_isotropic
       real(dp), intent(out) :: delta_E
+      ! p%rng is used for random number generation
 
       real(dp) :: E_old, E_new
       real(dp) :: vx_g, vy_g, vz_g  !重心速度
@@ -187,15 +188,15 @@ contains
 
       !散乱角
       if (use_isotropic) then
-         call random_number(r_chi)
+         r_chi = random_double(p%rng)
          chi = acos(1.0d0 - 2.0d0 * r_chi)
       else
          E_rel = 0.25d0 * M_D_kg * u_mag * u_mag * J_TO_EV
-         call random_number(r_chi)
+         r_chi = random_double(p%rng)
          chi = sample_scattering_angle(E_rel, r_chi)
       end if
 
-      call random_number(phi)
+      phi = random_double(p%rng)
       phi = 2.0d0 * PI * phi
 
       !ベクトル回転

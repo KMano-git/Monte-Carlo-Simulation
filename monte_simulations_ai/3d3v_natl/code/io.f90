@@ -6,7 +6,7 @@ module io
    use constants, only: dp, M_D_kg, EV_TO_J, J_TO_EV
    use data_types, only: particle_t, sim_params, plasma_params, init_params, &
       diag_params, score_data
-   use random_utils, only: sample_maxwell_velocity, set_beam_velocity
+   use random_utils, only: sample_maxwell_velocity, set_beam_velocity, init_rng
    implicit none
 
    private
@@ -161,14 +161,20 @@ contains
    !---------------------------------------------------------------------------
    ! 粒子の初期化（位置=原点、重み=1.0）
    !---------------------------------------------------------------------------
-   subroutine initialize_particles(particles, n_particles, init_p)
+   subroutine initialize_particles(particles, n_particles, init_p, seed)
       type(particle_t), intent(out) :: particles(:)
       integer, intent(in)           :: n_particles
       type(init_params), intent(in) :: init_p
+      integer, intent(in)           :: seed
 
       integer :: i
+      integer(8) :: particle_seed
 
       do i = 1, n_particles
+         !粒子固有のRNG初期化（seedとindexから一意のシードを生成）
+         particle_seed = int(seed, 8) * 6364136223846793005_8 + int(i, 8)
+         call init_rng(particles(i)%rng, particle_seed)
+
          particles(i)%x = 0.0d0
          particles(i)%y = 0.0d0
          particles(i)%z = 0.0d0
@@ -179,7 +185,7 @@ contains
             call set_beam_velocity(init_p%E_init, &
                particles(i)%vx, particles(i)%vy, particles(i)%vz)
          else
-            call sample_maxwell_velocity(init_p%T_init, &
+            call sample_maxwell_velocity(particles(i)%rng, init_p%T_init, &
                particles(i)%vx, particles(i)%vy, particles(i)%vz)
          end if
       end do
