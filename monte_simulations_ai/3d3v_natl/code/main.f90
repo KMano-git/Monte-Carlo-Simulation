@@ -12,6 +12,9 @@
 !      c. Null-Collision判定 → Rejection判定
 !      d. 実衝突時: CLスコアリング → CX/EL処理
 !   5. 診断出力（ntscrg.csv: 各ステップ [W/m3]）
+!
+! OpenMP: -fopenmp付きでコンパイルすると粒子ループが並列化される
+!         -fopenmpなしでも !$omp はコメントとして無視され逐次実行可能
 !===============================================================================
 program monte_carlo_3d3v_natl
    use constants
@@ -38,15 +41,22 @@ program monte_carlo_3d3v_natl
    type(particle_t), allocatable :: particles(:)
 
    integer :: istep, ip, ierr
-   integer :: coll_type
-   real(dp) :: vx_i, vy_i, vz_i    !背景イオン速度
-   real(dp) :: v_rel, E_rel        !相対速度・エネルギー
-   real(dp) :: delta_E             !エネルギー変化
    logical :: first_hist
 
    integer :: n_coll_cx, n_coll_el, n_coll_total
    integer :: n_alive
    real(dp) :: weight_sum
+
+   !OpenMP reduction用のスカラー変数
+   real(dp) :: s_cl_cx, s_cl_el, s_cl_ei
+   real(dp) :: s_tl_cx, s_tl_el, s_tl_ei
+
+   !スレッドプライベート変数（並列ループ内で使用）
+   integer :: coll_type_l
+   real(dp) :: vx_i_l, vy_i_l, vz_i_l
+   real(dp) :: v_rel_l, E_rel_l
+   real(dp) :: delta_E_l
+   type(score_data) :: my_score
 
    !---------------------------------------------------------------------------
    ! 初期化
@@ -95,10 +105,17 @@ program monte_carlo_3d3v_natl
       n_alive = 0
       weight_sum = 0.0d0
 
-      !1ステップ分のスコアをリセット
-      step_score%cl_ei = 0.0d0; step_score%cl_cx = 0.0d0; step_score%cl_el = 0.0d0
-      step_score%tl_ei = 0.0d0; step_score%tl_cx = 0.0d0; step_score%tl_el = 0.0d0
+      !1ステップ分のスコアをリセット（reduction用スカラー）
+      s_cl_ei = 0.0d0; s_cl_cx = 0.0d0; s_cl_el = 0.0d0
+      s_tl_ei = 0.0d0; s_tl_cx = 0.0d0; s_tl_el = 0.0d0
 
+      !$omp parallel do &
+      !$omp   private(ip, coll_type_l, vx_i_l, vy_i_l, vz_i_l, &
+      !$omp           v_rel_l, E_rel_l, delta_E_l, my_score) &
+      !$omp   reduction(+:n_alive, weight_sum, n_coll_cx, n_coll_el, &
+      !$omp              n_coll_total, s_cl_cx, s_cl_el, s_cl_ei, &
+      !$omp              s_tl_cx, s_tl_el, s_tl_ei) &
+      !$omp   schedule(static)
       do ip = 1, sim%n_particles
          if (.not. particles(ip)%alive) cycle
          n_alive = n_alive + 1
@@ -111,42 +128,64 @@ program monte_carlo_3d3v_natl
          end if
 
          !--- Step b: Track-Length Estimator ---
+         !スレッドローカルなスコア変数を使用
+         my_score%cl_ei = 0.0d0; my_score%cl_cx = 0.0d0; my_score%cl_el = 0.0d0
+         my_score%tl_ei = 0.0d0; my_score%tl_cx = 0.0d0; my_score%tl_el = 0.0d0
+
          call score_track_length_estimator(particles(ip), plasma, sim%dt, &
-            sim%use_isotropic, sim%enable_ei, step_score)
+            sim%use_isotropic, sim%enable_ei, my_score)
 
          !--- Step c: Null-Collision判定 → Rejection判定 ---
          call check_collision_nonanalog(particles(ip), plasma, sim, sim%dt, &
-            vx_i, vy_i, vz_i, &
-            v_rel, E_rel, coll_type)
+            vx_i_l, vy_i_l, vz_i_l, &
+            v_rel_l, E_rel_l, coll_type_l)
 
          !--- Step d: 実衝突時の処理 ---
-         if (coll_type /= COLL_NONE) then
+         if (coll_type_l /= COLL_NONE) then
             n_coll_total = n_coll_total + 1
 
-            if (coll_type == COLL_CX) then
+            if (coll_type_l == COLL_CX) then
                !荷電交換: CLスコアリング（衝突前の状態で）
-               delta_E = 0.0d0
+               delta_E_l = 0.0d0
                call score_collision_estimator(particles(ip), plasma, &
-                  v_rel, E_rel, coll_type, delta_E, sim%enable_ei, step_score)
+                  v_rel_l, E_rel_l, coll_type_l, delta_E_l, &
+                  sim%enable_ei, my_score)
                !衝突処理
-               call collision_cx(particles(ip), vx_i, vy_i, vz_i, delta_E)
+               call collision_cx(particles(ip), vx_i_l, vy_i_l, vz_i_l, &
+                  delta_E_l)
                n_coll_cx = n_coll_cx + 1
 
-            else if (coll_type == COLL_EL) then
+            else if (coll_type_l == COLL_EL) then
                !弾性散乱: 衝突処理（delta_Eを取得）
-               call collision_el(particles(ip), vx_i, vy_i, vz_i, &
-                  sim%use_isotropic, delta_E)
+               call collision_el(particles(ip), vx_i_l, vy_i_l, vz_i_l, &
+                  sim%use_isotropic, delta_E_l)
                !CLスコアリング（delta_Eを使用）
                call score_collision_estimator(particles(ip), plasma, &
-                  v_rel, E_rel, coll_type, delta_E, sim%enable_ei, step_score)
+                  v_rel_l, E_rel_l, coll_type_l, delta_E_l, &
+                  sim%enable_ei, my_score)
                n_coll_el = n_coll_el + 1
             end if
          end if
+
+         !--- スレッドローカルスコアをreduction変数に加算 ---
+         s_cl_cx = s_cl_cx + my_score%cl_cx
+         s_cl_el = s_cl_el + my_score%cl_el
+         s_cl_ei = s_cl_ei + my_score%cl_ei
+         s_tl_cx = s_tl_cx + my_score%tl_cx
+         s_tl_el = s_tl_el + my_score%tl_el
+         s_tl_ei = s_tl_ei + my_score%tl_ei
 
          !--- 位置更新 ---
          call advance_particle(particles(ip), sim%dt)
 
       end do
+      !$omp end parallel do
+
+      !--- reduction結果をstep_scoreに格納 ---
+      step_score%cl_cx = s_cl_cx; step_score%cl_el = s_cl_el
+      step_score%cl_ei = s_cl_ei
+      step_score%tl_cx = s_tl_cx; step_score%tl_el = s_tl_el
+      step_score%tl_ei = s_tl_ei
 
       !--- ステップスコアを累積スコアに加算 ---
       score%cl_ei = score%cl_ei + step_score%cl_ei
