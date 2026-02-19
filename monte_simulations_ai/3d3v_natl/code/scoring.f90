@@ -6,7 +6,7 @@ module scoring
    use constants, only: dp, M_D_kg, EV_TO_J, J_TO_EV
    use data_types, only: particle_t, plasma_params, score_data
    use cross_sections, only: sigma_cx, sigma_el, ionization_rate_coeff
-   use random_utils, only: sample_maxwell_velocity_ion
+   use random_utils, only: sample_maxwell_velocity_ion, random_double
    use cdf_reader, only: sample_scattering_angle
    implicit none
 
@@ -94,7 +94,7 @@ contains
    !---------------------------------------------------------------------------
    subroutine score_track_length_estimator(p, plasma, dt, &
       use_isotropic, enable_ei, score)
-      type(particle_t), intent(in)    :: p
+      type(particle_t), intent(inout)    :: p
       type(plasma_params), intent(in) :: plasma
       real(dp), intent(in)  :: dt           !タイムステップ [s]
       logical, intent(in)   :: use_isotropic !等方散乱フラグ
@@ -124,7 +124,7 @@ contains
 
       !--- 仮想サンプリング（Dummy Collision） ---
       !1. 仮想イオン速度をサンプリング
-      call sample_maxwell_velocity_ion(plasma%T_i, plasma, vx_d, vy_d, vz_d)
+      call sample_maxwell_velocity_ion(p%rng, plasma%T_i, plasma, vx_d, vy_d, vz_d)
 
       !2. 仮想相対速度
       v_rel_d = sqrt((p%vx - vx_d)**2 + (p%vy - vy_d)**2 + (p%vz - vz_d)**2)
@@ -156,14 +156,14 @@ contains
       if (u_mag > 1.0d-30) then
          !散乱角サンプリング
          if (use_isotropic) then
-            call random_number(r_chi)
+            r_chi = random_double(p%rng)
             chi_d = acos(1.0d0 - 2.0d0 * r_chi)
          else
-            call random_number(r_chi)
+            r_chi = random_double(p%rng)
             chi_d = sample_scattering_angle(E_rel_d, r_chi)
          end if
 
-         call random_number(r_phi)
+         r_phi = random_double(p%rng)
          phi_d = 2.0d0 * 3.141592653589793d0 * r_phi
 
          !相対速度を散乱角で回転
