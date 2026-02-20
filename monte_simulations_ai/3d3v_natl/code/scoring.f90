@@ -20,10 +20,11 @@ contains
    ! 実衝突（Rejection通過後）時のみ呼び出す
    ! s_CL = w_k * (R_a/R_s * s_a + s_s)
    !---------------------------------------------------------------------------
-   subroutine score_collision_estimator(p, plasma, v_rel, E_rel, &
-      coll_type, delta_E_el, enable_ei, score)
+   subroutine score_collision_estimator(p, plasma, vx_i, vy_i, vz_i, &
+      v_rel, E_rel, coll_type, delta_E_el, enable_ei, score)
       type(particle_t), intent(in)    :: p
       type(plasma_params), intent(in) :: plasma
+      real(dp), intent(in)  :: vx_i, vy_i, vz_i !背景イオン速度 [m/s]
       real(dp), intent(in)  :: v_rel       !相対速度 [m/s]
       real(dp), intent(in)  :: E_rel       !相対エネルギー [eV]
       integer, intent(in)   :: coll_type   !衝突タイプ (1=CX, 2=EL)
@@ -63,9 +64,8 @@ contains
       !電離: 中性粒子の運動エネルギーがイオンに渡る
       s_a = E_kin
 
-      !荷電交換: E_kin - (3/2 T_i + 1/2 m_D u_flow^2) を[J]で計算
-      s_cx = E_kin - (1.5d0 * plasma%T_i * EV_TO_J + &
-         0.5d0 * M_D_kg * u_flow2)
+      !荷電交換: E_kin - E_ion を[J]で計算 (E_ionはサンプリングされたイオンのエネルギー)
+      s_cx = E_kin - 0.5d0 * M_D_kg * (vx_i**2 + vy_i**2 + vz_i**2)
 
       !弾性散乱: -ΔE_EL
       s_el = -delta_E_el
@@ -194,8 +194,7 @@ contains
 
       !--- 各プロセスの s_c（単位時間あたりの期待スコア）[J/s] ---
       s_c_ei = R_a * E_kin
-      s_c_cx = R_cx_d * (E_kin - (1.5d0 * plasma%T_i * EV_TO_J + &
-         0.5d0 * M_D_kg * u_flow2))
+      s_c_cx = R_cx_d * (E_kin - 0.5d0 * M_D_kg * (vx_d**2 + vy_d**2 + vz_d**2))
       s_c_el = R_el_d * (-delta_E_el_dummy)
 
       !--- 有効飛行時間の計算 ---

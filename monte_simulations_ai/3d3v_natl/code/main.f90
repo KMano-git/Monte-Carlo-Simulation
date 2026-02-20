@@ -154,6 +154,7 @@ program monte_carlo_3d3v_natl
                !荷電交換: CLスコアリング（衝突前の状態で）
                delta_E_l = 0.0d0
                call score_collision_estimator(particles(ip), plasma, &
+                  vx_i_l, vy_i_l, vz_i_l, &
                   v_rel_l, E_rel_l, coll_type_l, delta_E_l, &
                   sim%enable_ei, my_score)
                !衝突処理
@@ -167,6 +168,7 @@ program monte_carlo_3d3v_natl
                   sim%use_isotropic, delta_E_l)
                !CLスコアリング（delta_Eを使用）
                call score_collision_estimator(particles(ip), plasma, &
+                  vx_i_l, vy_i_l, vz_i_l, &
                   v_rel_l, E_rel_l, coll_type_l, delta_E_l, &
                   sim%enable_ei, my_score)
                n_coll_el = n_coll_el + 1
