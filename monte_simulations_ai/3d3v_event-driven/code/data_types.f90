@@ -21,6 +21,8 @@ module data_types
       real(dp) :: vx, vy, vz    !速度 [m/s]
       real(dp) :: weight         !粒子重み（Non-Analogで電離により減衰）
       logical  :: alive          !生存フラグ
+      real(dp) :: zincx          !次の仮想衝突までのランダムな距離
+      real(dp) :: zint1          !現在までの累積距離
       type(rng_state) :: rng    !粒子固有の乱数状態
    end type particle_t
 

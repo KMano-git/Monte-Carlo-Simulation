@@ -6,7 +6,7 @@ module io
    use constants, only: dp, M_D_kg, EV_TO_J, J_TO_EV
    use data_types, only: particle_t, sim_params, plasma_params, init_params, &
       diag_params, score_data
-   use random_utils, only: sample_maxwell_velocity, set_beam_velocity, init_rng
+   use random_utils, only: sample_maxwell_velocity, set_beam_velocity, init_rng, random_double
    implicit none
 
    private
@@ -184,6 +184,8 @@ contains
          particles(i)%z = 0.0d0
          particles(i)%weight = 1.0d0
          particles(i)%alive = .true.
+         particles(i)%zint1 = 0.0d0
+         particles(i)%zincx = -log(max(random_double(particles(i)%rng), 1.0d-30))
 
          if (init_p%init_mode == 0) then
             call set_beam_velocity(init_p%E_init, &

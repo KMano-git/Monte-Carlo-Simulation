@@ -2,7 +2,7 @@
 &simulation
     n_particles = 100000    !粒子数
     n_steps     = 1000    !ステップ数
-    dt          = 1.0d-10   !時間刻み [s]
+    dt          = 1.0d-9   !時間刻み [s]
     seed        = 12345       !乱数シード
     
     enable_cx     = .true.
