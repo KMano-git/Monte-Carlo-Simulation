@@ -56,8 +56,10 @@ program monte_carlo_3d3v_natl
    real(dp) :: vx_i_l, vy_i_l, vz_i_l
    real(dp) :: v_rel_l, E_rel_l
    real(dp) :: delta_E_l
+   type(particle_t) :: p_copy
    type(score_data) :: my_score
-   real(dp) :: time_remaining, step_dt, t_col, r, nu_max, zincx_l, zint1_l
+   real(dp) :: time_remaining, step_dt, t_col, r, nu_max
+   logical  :: is_collision_event
    !時間計測用
    integer :: count_start, count_end, count_rate
    real(dp) :: time_sec
@@ -111,15 +113,14 @@ program monte_carlo_3d3v_natl
       n_alive = 0
       weight_sum = 0.0d0
 
-      !1ステップ分のスコアをリセット（reduction用���カラー）
+      !1ステップ分のスコアをリセット（reduction用���������カラー）
       s_cl_ei = 0.0d0; s_cl_cx = 0.0d0; s_cl_el = 0.0d0
       s_tl_ei = 0.0d0; s_tl_cx = 0.0d0; s_tl_el = 0.0d0
 
       !$omp parallel do &
       !$omp   private(ip, coll_type_l, vx_i_l, vy_i_l, vz_i_l, &
-      !$omp           v_rel_l, E_rel_l, delta_E_l, my_score, &
-      !$omp           time_remaining, step_dt, t_col, r, nu_max, &
-      !$omp           zincx_l, zint1_l) &
+      !$omp           v_rel_l, E_rel_l, delta_E_l, my_score, p_copy, &
+      !$omp           time_remaining, step_dt, t_col, r, nu_max, is_collision_event) &
       !$omp   reduction(+:n_alive, weight_sum, n_coll_cx, n_coll_el, &
       !$omp              n_coll_total, s_cl_cx, s_cl_el, s_cl_ei, &
       !$omp              s_tl_cx, s_tl_el, s_tl_ei) &
@@ -136,30 +137,28 @@ program monte_carlo_3d3v_natl
          time_remaining = sim%dt
          nu_max = plasma%n_i * sigma_v_max
 
-         ! 仮想衝突までの距離(zincx)と累積距離(zint1)の初期化
-         r = random_double(particles(ip)%rng)
-         zincx_l = -log(max(r, 1.0d-30))
-         zint1_l = 0.0d0
+         ! 仮想衝突までの距離(zincx)と累積距離(zint1)は粒子構造体に保持されているためここでは初期化しない
 
          !--- イベント駆動の内側ループ ---
          do while (time_remaining > 0.0d0 .and. particles(ip)%alive)
 
             ! 次の仮想衝突までの時間
             if (nu_max > 1.0d-30) then
-               t_col = (zincx_l - zint1_l) / nu_max
+               t_col = (particles(ip)%zincx - particles(ip)%zint1) / nu_max
             else
                t_col = time_remaining * 2.0d0 ! 衝突なし
             end if
 
-            step_dt = min(t_col, time_remaining)
-
-            ! 無限ループ・数値誤差防止: 極小ステップの場合はループ脱出
-            if (step_dt < 1.0d-14) then
+            is_collision_event = .false.
+            if (t_col <= time_remaining) then
+               step_dt = t_col
+               is_collision_event = .true.
+            else
                step_dt = time_remaining
             end if
 
             ! 累積距離の更新
-            zint1_l = zint1_l + step_dt * nu_max
+            particles(ip)%zint1 = particles(ip)%zint1 + step_dt * nu_max
 
             !--- Track-Length Estimator (step_dt に基づいて計算) ---
             call score_track_length_estimator(particles(ip), plasma, step_dt, &
@@ -180,7 +179,7 @@ program monte_carlo_3d3v_natl
             if (.not. particles(ip)%alive) exit
 
             !--- 仮想衝突イベントの評価 ---
-            if (zint1_l >= zincx_l .and. time_remaining > 0.0d0) then
+            if (is_collision_event .and. time_remaining > 0.0d0) then
                call evaluate_collision_event(particles(ip), plasma, sim, &
                   vx_i_l, vy_i_l, vz_i_l, &
                   v_rel_l, E_rel_l, coll_type_l)
@@ -190,6 +189,7 @@ program monte_carlo_3d3v_natl
 
                   if (coll_type_l == COLL_CX) then
                      delta_E_l = 0.0d0
+                     ! 速度・エネルギー更新前にスコアリング (衝突前の高いエネルギーを用いる)
                      call score_collision_estimator(particles(ip), plasma, &
                         vx_i_l, vy_i_l, vz_i_l, &
                         v_rel_l, E_rel_l, coll_type_l, delta_E_l, &
@@ -199,25 +199,29 @@ program monte_carlo_3d3v_natl
                      n_coll_cx = n_coll_cx + 1
 
                   else if (coll_type_l == COLL_EL) then
-                     call collision_el(particles(ip), vx_i_l, vy_i_l, vz_i_l, &
+                     ! 弾性散乱では delta_E_l を得る必要があるため、粒子のコピーを使用して処理する
+                     p_copy = particles(ip)
+                     call collision_el(p_copy, vx_i_l, vy_i_l, vz_i_l, &
                         sim%use_isotropic, delta_E_l)
+                     ! 元の粒子(更新前)を使ってスコアを記録
                      call score_collision_estimator(particles(ip), plasma, &
                         vx_i_l, vy_i_l, vz_i_l, &
                         v_rel_l, E_rel_l, coll_type_l, delta_E_l, &
                         sim%enable_ei, my_score)
+                     ! 更新後の状態(と進んだRNG状態)を書き戻し
+                     particles(ip) = p_copy
                      n_coll_el = n_coll_el + 1
                   end if
 
-                  ! 実際の衝��が発生した場合、または空衝突でもサンプリング距離を更新
-                  ! （最適化: 空衝突の場合、実際には更新しなくてもよいが、このロジックでは常に更新する）
+                  ! 実際の衝突が発生した場合、サンプリング距離を更新
                   r = random_double(particles(ip)%rng)
-                  zincx_l = -log(max(r, 1.0d-30))
-                  zint1_l = 0.0d0
+                  particles(ip)%zincx = -log(max(r, 1.0d-30))
+                  particles(ip)%zint1 = 0.0d0
                else
                   ! 空衝突の場合: イベント距離を再サンプリングして継続
                   r = random_double(particles(ip)%rng)
-                  zincx_l = -log(max(r, 1.0d-30))
-                  zint1_l = 0.0d0
+                  particles(ip)%zincx = -log(max(r, 1.0d-30))
+                  particles(ip)%zint1 = 0.0d0
                end if
             end if
 

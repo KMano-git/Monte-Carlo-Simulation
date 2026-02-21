@@ -45,7 +45,7 @@ contains
       real(dp), intent(in) :: dt
       real(dp), intent(in) :: weight_min
 
-      real(dp) :: R_a
+      real(dp) :: R_a, P_survive
 
       R_a = plasma%n_e * ionization_rate_coeff(plasma%T_e)
 
@@ -53,9 +53,14 @@ contains
          p%weight = p%weight * exp(-R_a * dt)
       end if
 
-      !最小重み以下なら粒子消滅
+      !最小重み以下ならロシアンルーレット
       if (p%weight < weight_min) then
-         p%alive = .false.
+         P_survive = 0.1d0
+         if (random_double(p%rng) <= P_survive) then
+            p%weight = p%weight / P_survive
+         else
+            p%alive = .false.
+         end if
       end if
    end subroutine update_weight
 
