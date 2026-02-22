@@ -28,6 +28,7 @@ program main
    real(dp) :: delta_E_total, delta_E_cx_total, delta_E_el_total
    real(dp) :: delta_E_avg, delta_E_cx_avg, delta_E_el_avg
    real(dp) :: delta_E_cx, delta_E_el
+   real(dp) :: sum_delta_E_cx, sum_delta_E_el
 
    integer :: i, istep, ihist
    integer :: ierr
@@ -69,6 +70,8 @@ program main
 
    ! メインループ
    time  = 0.0d0
+   sum_delta_E_cx = 0.0d0
+   sum_delta_E_el = 0.0d0
    ! 開始時点のエネルギー分布を出力、ファイルの初期化
    open(unit=unit_hist, file=trim(sim%output_hist), status='replace')
    close(unit_hist)
@@ -81,7 +84,10 @@ program main
       delta_E_cx_total = 0.0d0
       delta_E_el_total = 0.0d0
 
-      ! 各粒子について衝突判定
+      !$omp parallel do &
+      !$omp   private(i, vx_i, vy_i, vz_i, coll_type, delta_E_cx, delta_E_el) &
+      !$omp   reduction(+:delta_E_cx_total, delta_E_el_total, delta_E_total) &
+      !$omp   schedule(static)
       do i = 1, sim%n_particles
          if (.not. particles(i)%alive) cycle
 
@@ -102,8 +108,12 @@ program main
             !ここは未実装
          end if
       end do
+      !$omp end parallel do
 
       ! プラズマエネルギーへの寄与（1粒子あたり）
+      sum_delta_E_cx = sum_delta_E_cx + delta_E_cx_total
+      sum_delta_E_el = sum_delta_E_el + delta_E_el_total
+
       delta_E_avg = delta_E_total / dble(sim%n_particles)
       delta_E_cx_avg = delta_E_cx_total / dble(sim%n_particles)
       delta_E_el_avg = delta_E_el_total / dble(sim%n_particles)
@@ -133,7 +143,7 @@ program main
    write(*,'(A)') '  Simulation completed!'
    write(*,'(A)') '============================================'
    write(*,*)
-   call output_statistics(particles, sim%n_particles, plasma, init_p, diag, time)
+   call output_statistics(particles, sim%n_particles, plasma, sim, init_p, diag, time, sum_delta_E_cx, sum_delta_E_el)
 
    ! クリーンアップ
    close(unit_ntscrg)

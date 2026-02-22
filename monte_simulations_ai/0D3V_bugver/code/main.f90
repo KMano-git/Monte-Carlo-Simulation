@@ -44,8 +44,10 @@ program monte_carlo_0d
    real(dp) :: v_th_bg, v_rel_max, nu_max    ! Null Collision用
    real(dp) :: vx_bg, vy_bg, vz_bg           ! 背景速度
    real(dp) :: v_rel, P_accept               ! 相対速度と採用確率
+   real(dp) :: E_rel                         ! 衝突の相対エネルギー
    real(dp) :: delta_E
    integer :: ierr
+   real(dp), parameter :: SIGMA_MAX = 2.0d-18 ! 最大想定断面積 [m^2]
 
    !-----------------------------------------------------------------------------
    ! 初期化
@@ -124,15 +126,11 @@ program monte_carlo_0d
          ! 相対速度の最大値を推定 (v_particle + 5*v_th_bg)
          ! 安全率として少し大きめに取る
          v_th_bg = sqrt(plasma%T_bg * EV_TO_J / M_D)
-         v_rel_max = v_mag + 20.0d0 * v_th_bg
-
-         ! 断面積（定数と仮定）
-         sigma_cx = get_sigma_cx(E_particle)
-         sigma_el = get_sigma_el(E_particle)
-         sigma_total = sigma_cx + sigma_el
+         v_rel_max = v_mag + 5.0d0 * v_th_bg
 
          ! 最大衝突頻度
-         nu_max = plasma%n_bg * sigma_total * v_rel_max
+         ! 定数SIGMA_MAXを利用して上限を見積もる
+         nu_max = plasma%n_bg * SIGMA_MAX * v_rel_max
 
          ! 仮の衝突確率
          P_coll = 1.0d0 - exp(-nu_max * sim%dt)
@@ -149,16 +147,17 @@ program monte_carlo_0d
             (particles(i)%vy - vy_bg)**2 + &
             (particles(i)%vz - vz_bg)**2)
 
-         ! Rejection判定: P_accept = v_rel / v_rel_max
-         ! (厳密には sigma(v_rel)*v_rel / (sigma_max * v_rel_max) だが sigma一定なので)
+         ! 重心系での相対エネルギー [eV]
+         ! 換算質量 = M_D / 2.0 (同種粒子)
+         E_rel = 0.5d0 * (0.5d0 * M_D) * v_rel**2 * J_TO_EV
 
-         ! 安全策: v_rel > v_rel_max の場合は確率1で採用（ただし頻度が過小評価されていることになる）
-         if (v_rel > v_rel_max) then
-            ! まれなケースだが、警告を出してもよい
-            P_accept = 1.0d0
-         else
-            P_accept = v_rel / v_rel_max
-         end if
+         ! 実際の断面積を相対エネルギーで評価
+         sigma_cx = get_sigma_cx(E_rel)
+         sigma_el = get_sigma_el(E_rel)
+         sigma_total = sigma_cx + sigma_el
+
+         ! Rejection判定:
+         P_accept = (sigma_total * v_rel) / (SIGMA_MAX * v_rel_max)
 
          call random_number(r)
          if (r > P_accept) cycle ! 虚の衝突 (Null Collision)
@@ -184,7 +183,7 @@ program monte_carlo_0d
          else if (sim%enable_elastic) then
             ! 弾性散乱
             call collision_elastic(particles(i), vx_bg, vy_bg, vz_bg, sim%use_isotropic, &
-               E_particle, delta_E)
+               E_rel, delta_E)
             delta_E_el_total = delta_E_el_total + delta_E
             delta_E_total = delta_E_total + delta_E
          end if
