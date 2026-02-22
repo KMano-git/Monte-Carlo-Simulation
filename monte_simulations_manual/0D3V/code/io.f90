@@ -217,13 +217,15 @@ contains
    !-----------------------------------------------------------------------------
    ! 最終出力
    !-----------------------------------------------------------------------------
-   subroutine output_statistics(particles, n_particles, plasma, init_p, diag, time)
+   subroutine output_statistics(particles, n_particles, plasma, sim, init_p, diag, time, sum_E_cx, sum_E_el)
       type(particle_t), intent(in) :: particles(:)
       integer, intent(in) :: n_particles
       type(plasma_params), intent(in) :: plasma
+      type(sim_params), intent(in) :: sim
       type(init_params), intent(in) :: init_p
       type(diag_params), intent(in) :: diag
       real(dp), intent(in) :: time
+      real(dp), intent(in) :: sum_E_cx, sum_E_el
 
       real(dp) :: E_ev
       real(dp) :: E_mean, E_std, T_eff
@@ -258,6 +260,25 @@ contains
       write(*,'(A,F10.4,A)') '  Final E_mean = ', E_mean, ' eV'
       write(*,'(A,F10.4,A)') '  Final T_eff  = ', T_eff, ' eV'
       write(*,'(A,F10.4,A)') '  Target T_i   = ', plasma%T_i, ' eV'
+
+      if (time > 0.0d0) then
+         ! プラズマへのエネルギー付与 [W/m^3] = - (テスト粒子のエネルギー変化 [J]の合計) * norm / time
+         block
+            real(dp) :: norm, p_cx, p_el, p_tot
+            norm = init_p%n_init / (dble(n_particles) * time)
+            p_cx = - sum_E_cx * norm
+            p_el = - sum_E_el * norm
+            p_tot = p_cx + p_el
+            write(*,'(A)') ''
+            write(*,'(A)') '=========================================='
+            write(*,'(A)') ' Energy Deposition to Plasma [W/m^3]'
+            write(*,'(A)') '=========================================='
+            write(*,'(A,ES14.6)') '  P_cx    = ', p_cx
+            write(*,'(A,ES14.6)') '  P_el    = ', p_el
+            write(*,'(A,ES14.6)') '  P_total = ', p_tot
+            write(*,'(A)') '=========================================='
+         end block
+      end if
 
    end subroutine output_statistics
 

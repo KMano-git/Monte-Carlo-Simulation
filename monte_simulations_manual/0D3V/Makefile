@@ -6,6 +6,13 @@ FC = gfortran
 FFLAGS = -O2 -Wall -fcheck=bounds -J$(MODDIR)
 LDFLAGS = 
 
+# OpenMP support
+OPENMP ?= 1
+ifeq ($(OPENMP), 1)
+    FFLAGS += -fopenmp
+    LDFLAGS += -fopenmp
+endif
+
 # Directories
 SRCDIR = code
 RUNDIR = run

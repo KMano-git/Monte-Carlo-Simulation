@@ -3,7 +3,7 @@
 
 # Compiler and flags
 FC = gfortran
-FFLAGS = -O2 -Wall -fcheck=bounds
+FFLAGS = -O2 -Wall -fcheck=bounds -Jmodule
 LDFLAGS =
 
 # Directories
@@ -20,13 +20,13 @@ SOURCES = $(SRCDIR)/constants.f90 \
           $(SRCDIR)/main.f90
 
 # Object files
-OBJECTS = $(SOURCES:.f90=.o)
+OBJECTS = $(patsubst $(SRCDIR)/%.f90, module/%.o, $(SOURCES))
 
 # Module files
 MODULES = constants.mod particle_data.mod random_utils.mod cdf_reader.mod \
           collisions.mod statistics.mod
 
-# Executable
+# Execute
 EXEC = $(RUNDIR)/monte_carlo_0d
 
 #===============================================================================
@@ -43,20 +43,21 @@ $(EXEC): $(OBJECTS)
 	@echo "Build complete: $@"
 
 # Pattern rule for object files
-%.o: %.f90
+module/%.o: $(SRCDIR)/%.f90
+	@mkdir -p module
 	$(FC) $(FFLAGS) -c $< -o $@
 
 # Dependencies (module dependencies)
-$(SRCDIR)/particle_data.o: $(SRCDIR)/constants.o
-$(SRCDIR)/random_utils.o: $(SRCDIR)/constants.o
-$(SRCDIR)/cdf_reader.o: $(SRCDIR)/constants.o
-$(SRCDIR)/collisions.o: $(SRCDIR)/constants.o $(SRCDIR)/particle_data.o $(SRCDIR)/random_utils.o $(SRCDIR)/cdf_reader.o
-$(SRCDIR)/statistics.o: $(SRCDIR)/constants.o $(SRCDIR)/particle_data.o
-$(SRCDIR)/main.o: $(SRCDIR)/constants.o $(SRCDIR)/particle_data.o $(SRCDIR)/random_utils.o \
-                  $(SRCDIR)/cdf_reader.o $(SRCDIR)/collisions.o $(SRCDIR)/statistics.o
+module/particle_data.o: module/constants.o
+module/random_utils.o: module/constants.o
+module/cdf_reader.o: module/constants.o
+module/collisions.o: module/constants.o module/particle_data.o module/random_utils.o module/cdf_reader.o
+module/statistics.o: module/constants.o module/particle_data.o
+module/main.o: module/constants.o module/particle_data.o module/random_utils.o \
+               module/cdf_reader.o module/collisions.o module/statistics.o
 
 clean:
-	rm -f $(SRCDIR)/*.o $(SRCDIR)/*.mod *.mod
+	rm -rf module/
 	rm -f $(EXEC)
 	rm -f $(RUNDIR)/*.csv $(RUNDIR)/*.dat $(RUNDIR)/*.mod
 	@echo "Clean complete"
