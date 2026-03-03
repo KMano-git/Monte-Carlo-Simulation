@@ -11,7 +11,7 @@ module io
 
    private
    public :: read_input_file, initialize_particles
-   public :: output_energy_histogram, output_statistics
+   public :: output_energy_histogram, output_deltaE_histogram, output_statistics
    public :: output_ntscrg_header, output_ntscrg_step, output_ntscrg_final
 
 contains
@@ -46,6 +46,8 @@ contains
       integer  :: output_interval, n_hist_bins
       real(dp) :: E_hist_min, E_hist_max
       integer  :: hist_timing(6)
+      integer  :: n_dE_bins, dE_collect_steps
+      real(dp) :: dE_hist_min, dE_hist_max
 
       namelist /simulation/ n_particles, n_steps, dt, seed, &
          enable_cx, enable_el, enable_ei, use_isotropic, &
@@ -53,7 +55,8 @@ contains
       namelist /plasma_nml/ n_i, T_i, n_e, T_e, u_x, u_y, u_z
       namelist /particle_init/ n_init, E_init, T_init, init_mode
       namelist /diagnostics/ output_interval, n_hist_bins, &
-         E_hist_min, E_hist_max, hist_timing
+         E_hist_min, E_hist_max, hist_timing, &
+         n_dE_bins, dE_hist_min, dE_hist_max, dE_collect_steps
 
       !デフォルト値
       n_particles = 10000
@@ -87,6 +90,10 @@ contains
       E_hist_min      = 0.0d0
       E_hist_max      = 150.0d0
       hist_timing     = (/10, 20, 50, 100, 500, 1000/)
+      n_dE_bins       = 400
+      dE_hist_min     = -100.0d0
+      dE_hist_max     = 100.0d0
+      dE_collect_steps = 0
 
       !ファイル読み込み
       inquire(file='input.nml', exist=file_exist)
@@ -138,6 +145,10 @@ contains
       diag%E_hist_min      = E_hist_min
       diag%E_hist_max      = E_hist_max
       diag%hist_timing     = hist_timing
+      diag%n_dE_bins       = n_dE_bins
+      diag%dE_hist_min     = dE_hist_min
+      diag%dE_hist_max     = dE_hist_max
+      diag%dE_collect_steps = dE_collect_steps
 
       !パラメータ表示
       write(*,'(A)') '=========================================='
@@ -269,6 +280,50 @@ contains
          ', weight_sum = ', weight_sum
 
    end subroutine output_energy_histogram
+
+   !---------------------------------------------------------------------------
+   ! エネルギー移行量（ΔE）ヒストグラム出力
+   !---------------------------------------------------------------------------
+   subroutine output_deltaE_histogram(filename, dE_hist_el, dE_hist_cx, &
+      n_bins, dE_min, dE_max, &
+      n_init, n_particles, collect_time)
+      character(len=*), intent(in) :: filename
+      real(dp), intent(in) :: dE_hist_el(:), dE_hist_cx(:)
+      integer, intent(in)  :: n_bins
+      real(dp), intent(in) :: dE_min, dE_max
+      real(dp), intent(in) :: n_init
+      integer, intent(in)  :: n_particles
+      real(dp), intent(in) :: collect_time  !集計期間 [s]
+
+      real(dp) :: bin_width, norm
+      integer :: i, unit_out
+
+      bin_width = (dE_max - dE_min) / dble(n_bins)
+
+      ! 蓄積された重みを [events / (m^3 * s)] つまり反応率密度に変換する係数
+      ! density_rate = sum_weight * n_init / (N_particles * collect_time)
+      norm = n_init / (dble(n_particles) * collect_time)
+
+      !CSV出力
+      unit_out = 41
+      open(unit=unit_out, file=filename, status='replace')
+      write(unit_out,'(A)') 'step,time,dE_min,dE_max,bin_width,n_bins'
+      write(unit_out,'(I0,A,ES14.6,A,ES14.6,A,ES14.6,A,ES14.6,A,I0)') &
+         0, ',', collect_time, ',', dE_min, ',', dE_max, ',', bin_width, ',', n_bins
+      write(unit_out,'(A)') 'bin_center_eV,rate_EL_m-3s-1,rate_CX_m-3s-1'
+
+      do i = 1, n_bins
+         write(unit_out,'(ES14.6,A,ES14.6,A,ES14.6)') &
+            dE_min + (dble(i) - 0.5d0) * bin_width, ',', &
+            dE_hist_el(i) * norm, ',', &
+            dE_hist_cx(i) * norm
+      end do
+
+      close(unit_out)
+
+      write(*,'(A,ES12.4,A)') '  dE Histogram output (collect_time=', collect_time, ' s)'
+
+   end subroutine output_deltaE_histogram
 
    !---------------------------------------------------------------------------
    ! ntscrg.csv ヘッダー出力

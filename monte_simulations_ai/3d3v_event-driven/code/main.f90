@@ -39,9 +39,12 @@ program monte_carlo_3d3v_natl
    type(score_data)    :: score        !累積スコア
    type(score_data)    :: step_score   !1ステップ分のスコア
    type(particle_t), allocatable :: particles(:)
+   real(dp), allocatable :: dE_hist_el(:), dE_hist_cx(:)
 
    integer :: istep, ip, ierr
-   logical :: first_hist
+   logical :: first_hist, collect_dE
+   integer :: dE_start_step, dE_actual_steps
+   real(dp) :: dE_collect_time
 
    integer :: n_coll_cx, n_coll_el, n_coll_total
    integer :: n_alive
@@ -58,6 +61,9 @@ program monte_carlo_3d3v_natl
    real(dp) :: delta_E_l
    type(particle_t) :: p_copy
    type(score_data) :: my_score
+   real(dp), allocatable :: l_dE_hist_el(:), l_dE_hist_cx(:)
+   integer :: ibin_l
+   real(dp) :: dE_bin_width
    real(dp) :: time_remaining, step_dt, t_col, r, nu_max
    logical  :: is_collision_event
    !時間計測用
@@ -94,8 +100,21 @@ program monte_carlo_3d3v_natl
    !ntscrg.csvヘッダー出力
    call output_ntscrg_header(sim%output_ntscrg)
 
-   !初期ヒストグラム出力
+   !ヒストグラム配列の宣言と初期化
+   allocate(dE_hist_el(diag%n_dE_bins), dE_hist_cx(diag%n_dE_bins))
+   dE_hist_el = 0.0d0
+   dE_hist_cx = 0.0d0
+   dE_bin_width = (diag%dE_hist_max - diag%dE_hist_min) / dble(diag%n_dE_bins)
+
+   !初期ヒ��トグラム出力
    first_hist = .true.
+
+   !deltaEヒストグラム集計開始ステップの決定
+   if (diag%dE_collect_steps <= 0 .or. diag%dE_collect_steps >= sim%n_steps) then
+      dE_start_step = 1  !全ステップで集計
+   else
+      dE_start_step = sim%n_steps - diag%dE_collect_steps + 1
+   end if
 
    !---------------------------------------------------------------------------
    ! メインループ
@@ -106,6 +125,7 @@ program monte_carlo_3d3v_natl
    call system_clock(count_start, count_rate)
 
    do istep = 1, sim%n_steps
+      collect_dE = (istep >= dE_start_step)
 
       n_coll_cx = 0
       n_coll_el = 0
@@ -120,7 +140,8 @@ program monte_carlo_3d3v_natl
       !$omp parallel do &
       !$omp   private(ip, coll_type_l, vx_i_l, vy_i_l, vz_i_l, &
       !$omp           v_rel_l, E_rel_l, delta_E_l, my_score, p_copy, &
-      !$omp           time_remaining, step_dt, t_col, r, nu_max, is_collision_event) &
+      !$omp           time_remaining, step_dt, t_col, r, nu_max, is_collision_event, &
+      !$omp           l_dE_hist_el, l_dE_hist_cx, ibin_l) &
       !$omp   reduction(+:n_alive, weight_sum, n_coll_cx, n_coll_el, &
       !$omp              n_coll_total, s_cl_cx, s_cl_el, s_cl_ei, &
       !$omp              s_tl_cx, s_tl_el, s_tl_ei) &
@@ -133,6 +154,10 @@ program monte_carlo_3d3v_natl
          !スレッドローカルなスコア変数を使用（1パーティクル、1マクロステップ分）
          my_score%cl_ei = 0.0d0; my_score%cl_cx = 0.0d0; my_score%cl_el = 0.0d0
          my_score%tl_ei = 0.0d0; my_score%tl_cx = 0.0d0; my_score%tl_el = 0.0d0
+
+         allocate(l_dE_hist_el(diag%n_dE_bins), l_dE_hist_cx(diag%n_dE_bins))
+         l_dE_hist_el = 0.0d0
+         l_dE_hist_cx = 0.0d0
 
          time_remaining = sim%dt
          nu_max = plasma%n_i * sigma_v_max
@@ -198,6 +223,14 @@ program monte_carlo_3d3v_natl
                         delta_E_l)
                      n_coll_cx = n_coll_cx + 1
 
+                     ! エネルギー変化量[eV]をヒストグラムに記録
+                     if (collect_dE) then
+                        ibin_l = int((delta_E_l * J_TO_EV - diag%dE_hist_min) / dE_bin_width) + 1
+                        if (ibin_l >= 1 .and. ibin_l <= diag%n_dE_bins) then
+                           l_dE_hist_cx(ibin_l) = l_dE_hist_cx(ibin_l) + particles(ip)%weight
+                        end if
+                     end if
+
                   else if (coll_type_l == COLL_EL) then
                      ! 弾性散乱では delta_E_l を得る必要があるため、粒子のコピーを使用して処理する
                      p_copy = particles(ip)
@@ -211,6 +244,14 @@ program monte_carlo_3d3v_natl
                      ! 更新後の状態(と進んだRNG状態)を書き戻し
                      particles(ip) = p_copy
                      n_coll_el = n_coll_el + 1
+
+                     ! エネルギー変化量[eV]をヒストグラムに記録
+                     if (collect_dE) then
+                        ibin_l = int((delta_E_l * J_TO_EV - diag%dE_hist_min) / dE_bin_width) + 1
+                        if (ibin_l >= 1 .and. ibin_l <= diag%n_dE_bins) then
+                           l_dE_hist_el(ibin_l) = l_dE_hist_el(ibin_l) + particles(ip)%weight
+                        end if
+                     end if
                   end if
 
                   ! 実際の衝突が発生した場合、サンプリング距離を更新
@@ -235,6 +276,13 @@ program monte_carlo_3d3v_natl
          s_tl_cx = s_tl_cx + my_score%tl_cx
          s_tl_el = s_tl_el + my_score%tl_el
          s_tl_ei = s_tl_ei + my_score%tl_ei
+
+         !$omp critical
+         dE_hist_el(:) = dE_hist_el(:) + l_dE_hist_el(:)
+         dE_hist_cx(:) = dE_hist_cx(:) + l_dE_hist_cx(:)
+         !$omp end critical
+
+         deallocate(l_dE_hist_el, l_dE_hist_cx)
 
       end do
       !$omp end parallel do
@@ -270,6 +318,7 @@ program monte_carlo_3d3v_natl
       call output_energy_histogram(sim%output_hist, particles, sim%n_particles, &
          diag%n_hist_bins, diag%E_hist_min, diag%E_hist_max, &
          istep, 6, diag%hist_timing, first_hist)
+
       if (first_hist) then
          do ip = 1, 6
             if (istep == diag%hist_timing(ip)) then
@@ -298,7 +347,14 @@ program monte_carlo_3d3v_natl
    !最終統計
    call output_statistics(particles, sim%n_particles)
 
+   !--- 移行エネルギーヒストグラム出力（シミュレーション終了後に1回） ---
+   dE_actual_steps = sim%n_steps - dE_start_step + 1
+   dE_collect_time = dble(dE_actual_steps) * sim%dt
+   call output_deltaE_histogram('deltaE_hist.csv', dE_hist_el, dE_hist_cx, &
+      diag%n_dE_bins, diag%dE_hist_min, diag%dE_hist_max, &
+      init_p%n_init, sim%n_particles, dE_collect_time)
    !後片付け
    deallocate(particles)
+   deallocate(dE_hist_el, dE_hist_cx)
 
 end program monte_carlo_3d3v_natl
