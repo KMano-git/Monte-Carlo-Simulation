@@ -74,6 +74,11 @@ module data_types
       real(dp) :: E_hist_min       !エネルギー最小値 [eV]
       real(dp) :: E_hist_max       !エネルギー最大値 [eV]
       integer  :: hist_timing(6)   !ヒストグラム出力タイミング
+      ! エネルギー移行量ヒストグラム用
+      integer  :: n_dE_bins
+      real(dp) :: dE_hist_min      ![eV]
+      real(dp) :: dE_hist_max      ![eV]
+      integer  :: dE_collect_steps !集計ステップ��(0=全ステップ)
    end type diag_params
 
    !---------------------------------------------------------------------------

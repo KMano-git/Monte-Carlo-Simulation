@@ -1,7 +1,7 @@
 !シミュレーション条件
 &simulation
-    n_particles = 100000    !粒子数
-    n_steps     = 1000    !ステップ数
+    n_particles = 100000     !粒子数 (pythonに近づけるため少し増やす)
+    n_steps     = 10       !ステップ数 (pythonと条件を合わせるため1ステップのみ)
     dt          = 1.0d-9   !時間刻み [s]
     seed        = 12345       !乱数シード
     
@@ -38,9 +38,15 @@
 
 !出力条件
 &diagnostics
-    output_interval = 100  !出力間隔
+    output_interval = 1    !出力間隔
     n_hist_bins     = 400  !ヒストグラム分割数
     E_hist_min      = 0.0d0 !エネルギー最小値 [eV]
     E_hist_max      = 150.0d0 !エネルギー最大値 [eV]
-    hist_timing     = 10, 20, 50, 100, 500, 1000
+    hist_timing     = 1, 10, 50, 100, 500, 1000
+
+    ! エネルギー移行量 (ΔE) ヒストグラムの調整パラメータ
+    n_dE_bins       = 400      ! 分割数
+    dE_hist_min     = -20.0d0  ! 最小値 [eV] (見やすさのために -20eV〜20eV に絞る)
+    dE_hist_max     = 20.0d0   ! 最大値 [eV]
+    dE_collect_steps = 0       ! 集計ステップ数 (0=全ステップ, N=最後のNステップ)
 /

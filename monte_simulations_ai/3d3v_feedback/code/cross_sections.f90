@@ -24,17 +24,18 @@ contains
    function sigma_cx(E_eV) result(sigma)
       real(dp), intent(in) :: E_eV
       real(dp) :: sigma
-      real(dp) :: E_safe, log10E, a1, a2
+      real(dp) :: E_safe
 
-      E_safe = max(E_eV, 1.0d-3)
-      log10E = log10(E_safe)
+      ! 低エネルギーでの発散を防ぐ
+      E_safe = max(E_eV, 0.01d0)
 
-      !Janev式:  σ = (a1 - a2*log10(E))^2 [cm^2]
-      a1 = 3.245d0
-      a2 = 0.4060d0
+      ! Janev近似式 (src_read/monte/ntcros.f と同一)
+      ! σ_CX(E) [m^2]、E は重心系相対エネルギー [eV]
+      sigma = 0.6937d-18 * (1.0d0 - 0.155d0 * log10(E_safe))**2 &
+         / (1.0d0 + 0.1112d-14 * E_safe**3.3d0)
 
-      sigma = (a1 - a2 * log10E)**2 * 1.0d-16 * CM2_TO_M2  ![m^2]
-      sigma = max(sigma, 0.0d0)
+      ! 最小値を設定
+      sigma = max(sigma, 1.0d-22)
    end function sigma_cx
 
    !---------------------------------------------------------------------------

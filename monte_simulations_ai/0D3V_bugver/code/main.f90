@@ -367,11 +367,11 @@ contains
       ! 低エネルギーでの発散を防ぐ
       E_clip = max(E_eV, 0.01d0)
 
-      ! Janev近似式 (D + D+ → D+ + D)
-      ! σ_cx ≈ 3.0×10^-19 × (1 - 0.05×log10(E))^2 [m²]
-      sigma = 3.0d-19 * (1.0d0 - 0.05d0 * log10(E_clip))**2
+      ! Janev近似式 (src_read/monte/ntcros.f と同一)
+      sigma = 0.6937d-18 * (1.0d0 - 0.155d0 * log10(E_clip))**2 &
+         / (1.0d0 + 0.1112d-14 * E_clip**3.3d0)
 
-      ! 最小値を設定（高エネルギーでの過小評価防止）
+      ! 最小値を設定
       sigma = max(sigma, 1.0d-22)
 
    end function get_sigma_cx
