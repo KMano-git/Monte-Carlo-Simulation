@@ -42,6 +42,7 @@ module data_types
       character(len=256) :: cdf_file       !CDFファイル名
       character(len=256) :: output_ntscrg  !スコアリング出力ファイル名
       character(len=256) :: output_hist    !エネルギーヒストグラム出力ファイル名
+      character(len=256) :: output_deltaE_hist !エネルギー変化ヒストグラム出力ファイル名
    end type sim_params
 
    !---------------------------------------------------------------------------

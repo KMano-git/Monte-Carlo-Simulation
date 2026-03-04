@@ -106,7 +106,7 @@ program monte_carlo_3d3v_natl
    dE_hist_cx = 0.0d0
    dE_bin_width = (diag%dE_hist_max - diag%dE_hist_min) / dble(diag%n_dE_bins)
 
-   !初期ヒ��トグラム出力
+   !初期ヒ���トグラム出力
    first_hist = .true.
 
    !deltaEヒストグラム集計開始ステップの決定
@@ -350,7 +350,7 @@ program monte_carlo_3d3v_natl
    !--- 移行エネルギーヒストグラム出力（シミュレーション終了後に1回） ---
    dE_actual_steps = sim%n_steps - dE_start_step + 1
    dE_collect_time = dble(dE_actual_steps) * sim%dt
-   call output_deltaE_histogram('deltaE_hist.csv', dE_hist_el, dE_hist_cx, &
+   call output_deltaE_histogram(sim%output_deltaE_hist, dE_hist_el, dE_hist_cx, &
       diag%n_dE_bins, diag%dE_hist_min, diag%dE_hist_max, &
       init_p%n_init, sim%n_particles, dE_collect_time)
    !後片付け

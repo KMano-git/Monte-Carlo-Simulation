@@ -11,9 +11,10 @@
     use_isotropic = .false.
     weight_min    = 1.0d-10   !最小重み閾値
 
-    cdf_file      = 'dd_00_elastic.cdf'
-    output_ntscrg = 'ntscrg.csv'
-    output_hist   = 'energy_hist.csv'
+    cdf_file           = 'dd_00_elastic.cdf'
+    output_ntscrg      = 'ntscrg.csv'
+    output_hist        = 'energy_hist.csv'
+    output_deltaE_hist = 'deltaE_hist.csv'
 /
 
 !背景プラズマ条件（重水素プラズマ）
