@@ -33,7 +33,7 @@ contains
       integer  :: n_particles, n_steps, seed
       real(dp) :: dt, weight_min
       logical  :: enable_cx, enable_el, enable_ei, use_isotropic
-      character(len=256) :: cdf_file, output_ntscrg, output_hist
+      character(len=256) :: cdf_file, output_ntscrg, output_hist, output_deltaE_hist
 
       !plasma namelist変数
       real(dp) :: n_i, T_i, n_e, T_e, u_x, u_y, u_z
@@ -51,7 +51,8 @@ contains
 
       namelist /simulation/ n_particles, n_steps, dt, seed, &
          enable_cx, enable_el, enable_ei, use_isotropic, &
-         weight_min, cdf_file, output_ntscrg, output_hist
+         weight_min, cdf_file, output_ntscrg, output_hist, &
+         output_deltaE_hist
       namelist /plasma_nml/ n_i, T_i, n_e, T_e, u_x, u_y, u_z
       namelist /particle_init/ n_init, E_init, T_init, init_mode
       namelist /diagnostics/ output_interval, n_hist_bins, &
@@ -71,6 +72,7 @@ contains
       cdf_file    = 'dd_00_elastic.cdf'
       output_ntscrg = 'ntscrg.csv'
       output_hist = 'energy_hist.csv'
+      output_deltaE_hist = 'deltaE_hist.csv'
 
       n_i = 1.0d21
       T_i = 2.0d0
@@ -126,6 +128,7 @@ contains
       sim%cdf_file      = cdf_file
       sim%output_ntscrg = output_ntscrg
       sim%output_hist   = output_hist
+      sim%output_deltaE_hist = output_deltaE_hist
 
       plasma%n_i = n_i
       plasma%T_i = T_i
