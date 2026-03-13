@@ -22,7 +22,7 @@ M_D = 2.014 * AMU
 EV_TO_J = 1.60218e-19
 CM2_TO_M2 = 1e-4
 
-N_SAMPLES = 500000
+N_SAMPLES = 10000000
 
 # ============================================================
 # CDF / 断面積 (energy_histogram.py と同じ)
@@ -230,7 +230,7 @@ def main():
     ax.set_title(f'Charge Exchange (CX) — Tn={T_neutral}eV, Ti={T_ion}eV', fontsize=14, fontweight='bold')
     ax.set_yscale('log')
     max_val_cx = max(np.max(rate_cx_py), np.max(rcx_f))
-    ax.set_ylim(max_val_cx * 1e-5, max_val_cx * 2)
+    ax.set_ylim(1e22, max_val_cx * 2)
     ax.set_xlim(-15, 15)
     ax.legend(fontsize=11)
     ax.grid(True, alpha=0.3)

@@ -1,0 +1,61 @@
+==========================================
+ 3D3V Non-Analog Monte Carlo Simulation
+==========================================
+  n_particles  =      10000
+  n_steps      =       1000
+  dt           =   1.0000E-08
+  enable_cx    = T
+  enable_el    = T
+  enable_ei    = T
+  weight_min   =   1.0000E-08
+  n_i          =   1.0000E+21
+  T_i          =     2.00 eV
+  T_e          =     2.00 eV
+  T_init       =     2.00 eV
+==========================================
+ Ensemble Run ID:           21 , Adjusted Base Seed:   1550990298
+ CDF file size:     497928 bytes
+ CDF data points read:    23320
+ CDF file loaded successfully.
+   Sigma range [m^2]:   8.1600E-19 -   1.6604E-17
+ nu_max/n_i = sigma_v_max =   8.2930E-12 [m^3/s]
+ nu_max =   8.2930E+09 [1/s]
+
+Starting simulation...
+  Histogram output at step      1, weight_sum =   9.9975E+03
+  Histogram output at step     10, weight_sum =   9.9748E+03
+  Histogram output at step     50, weight_sum =   9.8748E+03
+  Step    100/  1000  alive=   10000  CX=  1259  EL=  3274
+  Histogram output at step    100, weight_sum =   9.7512E+03
+  Step    200/  1000  alive=   10000  CX=  1328  EL=  3248
+  Step    300/  1000  alive=   10000  CX=  1285  EL=  3192
+  Step    400/  1000  alive=   10000  CX=  1380  EL=  3153
+  Step    500/  1000  alive=   10000  CX=  1348  EL=  3308
+  Histogram output at step    500, weight_sum =   8.8165E+03
+  Step    600/  1000  alive=   10000  CX=  1276  EL=  3381
+  Step    700/  1000  alive=   10000  CX=  1369  EL=  3291
+  Step    800/  1000  alive=   10000  CX=  1360  EL=  3324
+  Step    900/  1000  alive=   10000  CX=  1257  EL=  3421
+  Step   1000/  1000  alive=   10000  CX=  1318  EL=  3313
+  Histogram output at step   1000, weight_sum =   7.7731E+03
+Elapsed time:     127.3521 seconds
+
+Simulation complete.
+
+==========================================
+ Scoring Results (time-averaged) [W/m3]
+==========================================
+          EI              CX              EL              Total
+ CL:     5.350327E+05   -1.949091E+05    1.923577E+05    5.324812E+05
+ TL:     5.348887E+05   -1.785377E+05   -1.474422E+05    2.089088E+05
+==========================================
+
+==========================================
+ Final Statistics
+==========================================
+  Alive particles  =      10000
+  Total weight     =    7773.1241
+  Mean energy      =       2.9870 eV
+  Eff. temperature =       1.9913 eV
+==========================================
+  dE Histogram output (collect_time=  1.0000E-05 s)

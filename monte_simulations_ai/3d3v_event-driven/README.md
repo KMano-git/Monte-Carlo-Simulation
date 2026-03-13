@@ -13,3 +13,5 @@ Janevの関係式になってなかったっぽいので修正
 3d3v_natl/code/cross_sections.f90	同上
 3d3v_feedback/code/cross_sections.f90	同上
 0D3V_bugver/code/main.f90	3.0d-19*(1-0.05*log10)²
+
+Janev および Bachman のダブルカウントを解決したいね

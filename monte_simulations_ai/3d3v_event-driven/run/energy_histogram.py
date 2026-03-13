@@ -226,7 +226,7 @@ def compute_energy_transfers(T_neutral, T_ion, n_samples,
 
 def main():
     # コマンドライン引数からパラメータを取得
-    T_neutral = 3.0  # デフォルト中性粒子温度 [eV]
+    T_neutral = 2.0  # デフォルト中性粒子温度 [eV]
     T_ion = 2.0      # デフォルトイオン温度 [eV]
     
     if len(sys.argv) >= 2:
@@ -250,7 +250,7 @@ def main():
     
     # CDFファイルを読み込む
     print("\nLoading CDF file...")
-    cdf_file = "dd_00_elastic.cdf"
+    cdf_file = "dd_00_elastic_pure_el.cdf"
     energy_grid, sigma_elastic, prob_grid, energy_grid_angle, angle_cdf = \
         load_elastic_cdf(cdf_file)
     
