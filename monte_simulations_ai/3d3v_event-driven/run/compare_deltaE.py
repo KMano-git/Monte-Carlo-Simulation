@@ -156,7 +156,7 @@ def main():
 
     # --- Fortran CSV ---
     print("\nLoading Fortran deltaE_hist.csv ...")
-    bc_f, rel_f, rcx_f = load_fortran_csv("deltaE_hist.csv")
+    bc_f, rel_f, rcx_f = load_fortran_csv("deltaE_hist_sol.csv")
     bin_width_f = bc_f[1] - bc_f[0]
 
     # Fortran: deltaE = E_new - E_old (中性粒子の変化)
@@ -236,7 +236,7 @@ def main():
     ax.grid(True, alpha=0.3)
 
     plt.tight_layout()
-    outfile = 'figure/deltaE_comparison.png'
+    outfile = 'figure/deltaE_comparison_old.png'
     plt.savefig(outfile, dpi=150, bbox_inches='tight')
     print(f"\nComparison plot saved to: {outfile}")
 

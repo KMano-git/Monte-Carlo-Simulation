@@ -12,7 +12,7 @@ program main
    integer :: file_unit
 
    ! Initialize CDF
-   call load_elastic_cdf('../../3d3v_event-driven/run/dd_00_elastic.cdf', ierr)
+   call load_elastic_cdf('../../3d3v_event-driven/run/dd_00_elastic_pure_el_angle.cdf', ierr)
    if (ierr /= 0) then
       write(*,*) "Failed to load CDF file. Error: ", ierr
       stop
