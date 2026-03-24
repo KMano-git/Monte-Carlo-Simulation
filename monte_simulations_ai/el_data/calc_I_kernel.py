@@ -78,8 +78,9 @@ c0 = 1.3891494e6  # cm/s for 1 eV/amu
 I10_new = np.zeros((n2_I, n1_I))
 I11_new = np.zeros((n2_I, n1_I))
 I12_new = np.zeros((n2_I, n1_I))
+RR_new = np.zeros((n2_I, n1_I))
 
-print("Calculating I_1_x integrals...", flush=True)
+print("Calculating I_1_x and Reaction Rate integrals...", flush=True)
 
 # Using a progress counter
 total_points = n2_I * n1_I
@@ -108,18 +109,26 @@ for iT in range(n2_I):
         diff_exp = exp_minus - exp_plus
         sum_exp = exp_minus + exp_plus
         
+        # Integrands for I_1_x (use sigma_1 = sigma_tot * R_theta)
         integ_10 = xi_grid**2 * s1_grid * diff_exp
         integ_11 = xi_grid**3 * s1_grid * sum_exp
         integ_12 = xi_grid**4 * s1_grid * diff_exp
         
+        # Integrand for Reaction Rate (uses sigma_tot only)
+        # RR formula is mathematically identical to I_1_0 but with sigma_tot instead of sigma^{(1)}
+        s_tot_grid = f_sigma_tot(Er_grid)
+        integ_rr = xi_grid**2 * s_tot_grid * diff_exp
+        
         res_10 = integrate.simpson(integ_10, x=xi_grid)
         res_11 = integrate.simpson(integ_11, x=xi_grid)
         res_12 = integrate.simpson(integ_12, x=xi_grid)
+        res_rr = integrate.simpson(integ_rr, x=xi_grid)
         
         pref = 1.0 / (np.sqrt(np.pi) * v_alpha)
         I10_new[iT, iE] = pref * res_10 * (a_beta**2)
         I11_new[iT, iE] = pref * res_11 * (a_beta**3)
         I12_new[iT, iE] = pref * res_12 * (a_beta**4)
+        RR_new[iT, iE]  = pref * res_rr * (a_beta**2)
         
         count += 1
         if count % 500 == 0:
@@ -131,17 +140,27 @@ print("Integration complete. Copying back to xs_data_tab...", flush=True)
 def flatten_back(arr):
     return arr.flatten()  # row-major (T then E corresponds to C-contiguous reshape which we originally achieved with reshape(n2, n1))
 
+RR_flat  = flatten_back(RR_new)
 I10_flat = flatten_back(I10_new)
 I11_flat = flatten_back(I11_new)
 I12_flat = flatten_back(I12_new)
 
+idx_rr = 1; b_rr = xs_data_base[idx_rr]; inc_rr = xs_data_inc[idx_rr]
 idx_10 = 2; b_10 = xs_data_base[idx_10]; inc_10 = xs_data_inc[idx_10]
 idx_11 = 3; b_11 = xs_data_base[idx_11]; inc_11 = xs_data_inc[idx_11]
 idx_12 = 4; b_12 = xs_data_base[idx_12]; inc_12 = xs_data_inc[idx_12]
 
+xs_data_tab[b_rr:b_rr+inc_rr] = RR_flat
 xs_data_tab[b_10:b_10+inc_10] = I10_flat
 xs_data_tab[b_11:b_11+inc_11] = I11_flat
 xs_data_tab[b_12:b_12+inc_12] = I12_flat
+
+# Also we need to recalculate sigv_max since reaction_rate changed
+# sigv_max is at index 6. Let's find max of RR_new
+new_sigv_max = np.max(RR_new)
+idx_6 = 6; b_6 = xs_data_base[idx_6]
+xs_data_tab[b_6] = new_sigv_max
+print(f"Updated sigv_max to {new_sigv_max:.6e}", flush=True)
 
 print("Formatting new xs_data_tab string...", flush=True)
 # To preserve formatting, we write 4 floats per line, or whatever is clean.

@@ -38,7 +38,8 @@
 
 ## 開発の系譜
 概ね以下の順序で発展・改修されている：
-`0D3V_bugver` → `1D3V` 系 → `3d3v_natl` → `3d3v_event-driven` → `3d3v_feedback`
+`0D3V_bugver` → `1D3V` 系 → `3d3v_natl` → `3d3v_event-driven` 
+→ `3d3v_feedback` → `3d3v_lookup`
 
 ## 一般的な使用方法
 1. 各ディレクトリで `make` を実行してコンパイル。
