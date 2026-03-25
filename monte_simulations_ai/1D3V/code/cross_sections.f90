@@ -1,106 +1,108 @@
 !===============================================================================
 ! Module: cross_sections
-! 断面積計算（荷電交換、弾性散乱、電離）
+! 断面積計算と ν_max 評価
 !===============================================================================
 module cross_sections
-   use constants, only: dp, E_IONIZE_THRESHOLD
+   use constants, only: dp, M_D_kg, J_TO_EV, E_IONIZE_THRESHOLD
    use cdf_reader, only: get_sigma_elastic
    implicit none
 
+   private
+   public :: sigma_cx, sigma_el, sigma_ei, get_scatter_cross_sections
+   public :: ionization_rate_coeff, compute_nu_max
+
+   real(dp), public :: sigma_v_max = 0.0d0
+
 contains
 
-   !-----------------------------------------------------------------------------
-   ! 荷電交換断面積（Janev/Rabinovitch近似）
-   ! D⁰ + D⁺ → D⁺ + D⁰
-   !-----------------------------------------------------------------------------
-   function sigma_cx(energy) result(sigma)
-      real(dp), intent(in) :: energy  ! 衝突エネルギー [eV]
-      real(dp) :: sigma               ! 断面積 [m²]
+   function sigma_cx(E_eV) result(sigma)
+      real(dp), intent(in) :: E_eV
+      real(dp) :: sigma
+      real(dp) :: E_safe
 
-      real(dp) :: E_clip
-
-      ! 低エネルギーでの発散を防ぐ
-      E_clip = max(energy, 0.01d0)
-
-      ! Janev近似式
-      sigma = 0.6937d-18 * (1.0d0 - 0.155d0 * log10(E_clip))**2 / (1.0d0 + 0.1112d-14 * E_clip**3.3d0)
-
-      ! 最小値を設定
+      E_safe = max(E_eV, 0.01d0)
+      sigma = 0.6937d-18 * (1.0d0 - 0.155d0 * log10(E_safe))**2 &
+         / (1.0d0 + 0.1112d-14 * E_safe**3.3d0)
       sigma = max(sigma, 1.0d-22)
-
    end function sigma_cx
 
-   !-----------------------------------------------------------------------------
-   ! 弾性散乱断面積（外部CDFデータから）
-   ! D⁰ + D⁺ → D⁰ + D⁺（散乱）
-   !-----------------------------------------------------------------------------
-   function sigma_el(energy) result(sigma)
-      real(dp), intent(in) :: energy  ! 衝突エネルギー [eV]
-      real(dp) :: sigma               ! 断面積 [m²]
+   function sigma_el(E_eV) result(sigma)
+      real(dp), intent(in) :: E_eV
+      real(dp) :: sigma
 
-      sigma = get_sigma_elastic(energy)
-
+      sigma = get_sigma_elastic(0.5d0 * E_eV)
    end function sigma_el
 
-   !-----------------------------------------------------------------------------
-   ! 電離断面積（電子衝突電離）
-   ! D⁰ + e⁻ → D⁺ + 2e⁻
-   ! 電子エネルギーで判定（電子-中性粒子の相対エネルギー ≈ 電子エネルギー）
-   !-----------------------------------------------------------------------------
-   function sigma_ei(E_electron) result(sigma)
-      real(dp), intent(in) :: E_electron  ! 電子エネルギー [eV]
-      real(dp) :: sigma                   ! 断面積 [m²]
+   function sigma_ei(E_eV) result(sigma)
+      real(dp), intent(in) :: E_eV
+      real(dp) :: sigma
 
-      real(dp), parameter :: sigma_0 = 1.0d-20  ! スケーリング係数 [m²・eV]
+      real(dp) :: u, A_coeff
 
-      if (E_electron <= E_IONIZE_THRESHOLD) then
-         sigma = 0.0d0
-      else
-         ! ベーテ式に基づく簡易モデル
-         sigma = sigma_0 * log(E_electron / E_IONIZE_THRESHOLD) / E_electron
-         sigma = max(sigma, 0.0d0)
-      end if
+      sigma = 0.0d0
+      if (E_eV <= E_IONIZE_THRESHOLD) return
 
+      u = E_eV / E_IONIZE_THRESHOLD
+      A_coeff = 0.68d-20
+      sigma = A_coeff / (E_eV * E_IONIZE_THRESHOLD) * (1.0d0 - 1.0d0 / u) * log(u)
+      sigma = max(sigma, 0.0d0)
    end function sigma_ei
 
-   !-----------------------------------------------------------------------------
-   ! 電離レート係数 <σv>_ei の計算
-   ! Maxwell分布の電子に対する平均レート係数
-   ! 入力: T_e [eV]
-   ! 出力: <σv>_ei [m³/s]
-   !-----------------------------------------------------------------------------
-   function ionization_rate_coeff(T_e) result(sigmav)
-      real(dp), intent(in) :: T_e    ! 電子温度 [eV]
-      real(dp) :: sigmav             ! <σv> [m³/s]
+   function ionization_rate_coeff(T_e) result(rate)
+      real(dp), intent(in) :: T_e
+      real(dp) :: rate
 
-      real(dp), parameter :: m_e = 9.109d-31    ! 電子質量 [kg]
-      real(dp), parameter :: eV_to_J = 1.60218d-19
-      real(dp) :: v_th, E_mean
+      real(dp) :: x
 
-      ! 電子の熱速度
-      v_th = sqrt(2.0d0 * T_e * eV_to_J / m_e)
+      rate = 0.0d0
+      if (T_e <= 0.0d0) return
 
-      ! 平均電子エネルギー ≈ (3/2) * T_e
-      E_mean = 1.5d0 * T_e
+      x = E_IONIZE_THRESHOLD / T_e
+      if (x > 80.0d0) return
 
-      ! <σv> ≈ σ(E_mean) * v_th
-      sigmav = sigma_ei(E_mean) * v_th
-
+      rate = 2.34d-14 * exp(-x) * sqrt(x) / (1.0d0 + 0.25d0 * x)
+      rate = max(rate, 0.0d0)
    end function ionization_rate_coeff
 
-   !-----------------------------------------------------------------------------
-   ! 全断面積の計算（イオン衝突用）
-   !-----------------------------------------------------------------------------
-   subroutine get_all_cross_sections(energy, sig_cx, sig_el, sig_ei_out, sig_total)
-      real(dp), intent(in)  :: energy
-      real(dp), intent(out) :: sig_cx, sig_el, sig_ei_out, sig_total
+   subroutine get_scatter_cross_sections(E_rel, sig_cx, sig_el, sig_s)
+      real(dp), intent(in)  :: E_rel
+      real(dp), intent(out) :: sig_cx
+      real(dp), intent(out) :: sig_el
+      real(dp), intent(out) :: sig_s
 
-      sig_cx = sigma_cx(energy)
-      sig_el = sigma_el(energy)
-      ! 電離は別途電子温度で計算するため、ここでは0を返す
-      sig_ei_out = 0.0d0
-      sig_total = sig_cx + sig_el
+      sig_cx = sigma_cx(E_rel)
+      sig_el = sigma_el(E_rel)
+      sig_s = sig_cx + sig_el
+   end subroutine get_scatter_cross_sections
 
-   end subroutine get_all_cross_sections
+   subroutine compute_nu_max(n_i)
+      real(dp), intent(in) :: n_i
+
+      integer :: i
+      integer, parameter :: n_scan = 1000
+      real(dp) :: v_rel, E_rel, sig_cx_val, sig_el_val, sig_s_val
+      real(dp) :: sigma_v, sv_max
+      real(dp) :: v_min, v_max, log_v_min, log_v_max, log_v
+
+      v_min = 1.0d1
+      v_max = 1.0d7
+      log_v_min = log(v_min)
+      log_v_max = log(v_max)
+
+      sv_max = 0.0d0
+      do i = 0, n_scan
+         log_v = log_v_min + (log_v_max - log_v_min) * dble(i) / dble(n_scan)
+         v_rel = exp(log_v)
+         E_rel = 0.25d0 * M_D_kg * v_rel * v_rel * J_TO_EV
+
+         call get_scatter_cross_sections(E_rel, sig_cx_val, sig_el_val, sig_s_val)
+         sigma_v = sig_s_val * v_rel
+         if (sigma_v > sv_max) sv_max = sigma_v
+      end do
+
+      sigma_v_max = sv_max
+      write(*,'(A,ES12.4,A)') ' nu_max/n_i = sigma_v_max = ', sv_max, ' [m^3/s]'
+      write(*,'(A,ES12.4,A)') ' nu_max = ', n_i * sv_max, ' [1/s]'
+   end subroutine compute_nu_max
 
 end module cross_sections

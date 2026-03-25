@@ -1,26 +1,52 @@
 &simulation
-  n_particles = 100000
-  n_steps     = 10000
-  n_grid      = 100
-  dt          = 1.0d-8
-  x_min       = 0.0d0
-  x_max       = 0.1d0
-  seed        = 12345
-  cdf_file    = 'dd_00_elastic.cdf'
-  output_file = 'ntscrg.csv'
+  n_particles      = 4000
+  n_steps          = 200
+  n_x_bins         = 100
+  dt               = 1.0d-8
+  seed             = 12345
+  x_min            = 0.0d0
+  x_max            = 0.1d0
+  gamma_in         = 1.0d23
+  enable_cx        = .true.
+  enable_el        = .true.
+  enable_ei        = .true.
+  use_isotropic    = .false.
+  enable_tl_lookup = .false.
+  weight_min       = 1.0d-10
+  cdf_file         = 'dd_00_elastic.cdf'
+  output_ntscrg    = 'ntscrg.csv'
+  output_profile   = 'profile_x.csv'
+  output_hist      = 'energy_hist.csv'
+  output_deltaE_hist = 'deltaE_hist.csv'
 /
 
 &plasma_nml
-  n_bg = 1.0d21
-  n_e  = 1.0d21
-  T_bg = 10.0d0
-  T_e  = 10.0d0
+  n_i = 1.0d21
+  n_e = 1.0d21
+  T_i = 10.0d0
+  T_e = 10.0d0
+  u_x = 0.0d0
+  u_y = 0.0d0
+  u_z = 0.0d0
 /
 
 &particle_init
-  gamma_in  = 1.0d23
   x_init    = 0.0d0
+  y_init    = 0.0d0
+  z_init    = 0.0d0
   E_init    = 15.0d0
   T_init    = 2.0d0
   init_mode = 0
+/
+
+&diagnostics
+  output_interval = 20
+  n_hist_bins     = 200
+  E_hist_min      = 0.0d0
+  E_hist_max      = 150.0d0
+  hist_timing     = 0, 20, 50, 100, 150, 200
+  n_dE_bins       = 200
+  dE_hist_min     = -20.0d0
+  dE_hist_max     = 20.0d0
+  dE_collect_steps = 0
 /

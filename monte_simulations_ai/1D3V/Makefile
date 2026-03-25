@@ -1,59 +1,65 @@
-# Makefile for Monte Carlo Neutral Particle Simulation
-# Usage:
-#   make        - Build the executable in run/
-#   make clean  - Remove build files
-#   make run    - Build and run
+# Makefile for 1D3V Monte Carlo Simulation
+#===============================================================================
 
-# Compiler settings
 FC = gfortran
-FFLAGS = -O2 -Wall -Wextra
-FFLAGS_DEBUG = -O0 -g -fcheck=all -fbacktrace
+FFLAGS = -O2 -Wall -Wextra -fcheck=bounds -J$(MODDIR)
+LDFLAGS =
 
-# Directories
+ifdef OPENMP
+  FFLAGS += -fopenmp
+  LDFLAGS += -fopenmp
+endif
+
 SRCDIR = code
 RUNDIR = run
+MODDIR = module
 
-# Target executable (in run directory)
-TARGET = $(RUNDIR)/monte_carlo
+SOURCES = $(SRCDIR)/constants.f90 \
+          $(SRCDIR)/data_types.f90 \
+          $(SRCDIR)/random_utils.f90 \
+          $(SRCDIR)/cdf_reader.f90 \
+          $(SRCDIR)/cross_sections.f90 \
+          $(SRCDIR)/dynamics.f90 \
+          $(SRCDIR)/scoring.f90 \
+          $(SRCDIR)/io.f90 \
+          $(SRCDIR)/main.f90
 
-# Source files (order matters for dependencies)
-SRCS = $(SRCDIR)/constants.f90 \
-       $(SRCDIR)/types.f90 \
-       $(SRCDIR)/cdf_reader.f90 \
-       $(SRCDIR)/cross_sections.f90 \
-       $(SRCDIR)/scoring.f90 \
-       $(SRCDIR)/dynamics.f90 \
-       $(SRCDIR)/io.f90 \
-       $(SRCDIR)/main.f90
+OBJECTS = $(patsubst $(SRCDIR)/%.f90,$(MODDIR)/%.o,$(SOURCES))
+EXEC = $(RUNDIR)/monte_carlo_1d3v
 
-# Module files generated
-MODS = constants.mod types.mod cdf_reader.mod cross_sections.mod \
-       scoring.mod dynamics.mod io.mod
+.PHONY: all clean run
 
-# Default target
-all: $(TARGET)
+all: $(EXEC)
 
-# Build executable directly in run/
-$(TARGET): $(SRCS)
+$(EXEC): $(OBJECTS)
 	@mkdir -p $(RUNDIR)
-	$(FC) $(FFLAGS) -o $@ $(SRCS)
-	@mv -f *.mod $(RUNDIR)/ 2>/dev/null || true
-	@echo "Built: $@"
+	$(FC) $(FFLAGS) -o $@ $(OBJECTS) $(LDFLAGS)
+	@echo "Build complete: $@"
 
-# Debug build
-debug: FFLAGS = $(FFLAGS_DEBUG)
-debug: $(TARGET)
+$(MODDIR)/%.o: $(SRCDIR)/%.f90
+	@mkdir -p $(MODDIR)
+	$(FC) $(FFLAGS) -c $< -o $@
 
-# Run simulation
-run: $(TARGET)
-	cd $(RUNDIR) && ./monte_carlo
+$(MODDIR)/data_types.o: $(MODDIR)/constants.o
+$(MODDIR)/random_utils.o: $(MODDIR)/constants.o $(MODDIR)/data_types.o
+$(MODDIR)/cdf_reader.o: $(MODDIR)/constants.o
+$(MODDIR)/cross_sections.o: $(MODDIR)/constants.o $(MODDIR)/cdf_reader.o
+$(MODDIR)/dynamics.o: $(MODDIR)/constants.o $(MODDIR)/data_types.o \
+	$(MODDIR)/random_utils.o $(MODDIR)/cross_sections.o $(MODDIR)/cdf_reader.o
+$(MODDIR)/scoring.o: $(MODDIR)/constants.o $(MODDIR)/data_types.o \
+	$(MODDIR)/random_utils.o $(MODDIR)/cross_sections.o $(MODDIR)/cdf_reader.o
+$(MODDIR)/io.o: $(MODDIR)/constants.o $(MODDIR)/data_types.o $(MODDIR)/random_utils.o
+$(MODDIR)/main.o: $(MODDIR)/constants.o $(MODDIR)/data_types.o $(MODDIR)/random_utils.o \
+	$(MODDIR)/cdf_reader.o $(MODDIR)/cross_sections.o $(MODDIR)/dynamics.o \
+	$(MODDIR)/scoring.o $(MODDIR)/io.o
 
-# Clean build files
 clean:
-	rm -f $(TARGET) $(MODS) *.mod $(RUNDIR)/*.mod
+	rm -f $(MODDIR)/*.o $(MODDIR)/*.mod
+	rm -f $(EXEC)
+	rm -f $(RUNDIR)/monte_carlo
+	rm -f $(RUNDIR)/*.csv $(RUNDIR)/*.dat $(RUNDIR)/*.mod $(RUNDIR)/*.png
+	rm -rf $(RUNDIR)/figure
+	@echo "Clean complete"
 
-# Clean everything including results
-distclean: clean
-	rm -f $(RUNDIR)/results.csv
-
-.PHONY: all debug run clean distclean
+run: $(EXEC)
+	cd $(RUNDIR) && ./monte_carlo_1d3v

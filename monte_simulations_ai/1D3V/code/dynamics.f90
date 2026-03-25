@@ -1,302 +1,222 @@
 !===============================================================================
 ! Module: dynamics
-! 粒子の推進と衝突判定
+! 粒子力学: null-collision 法による衝突評価と衝突処理
 !===============================================================================
 module dynamics
-   use constants, only: dp, M_D, EV_TO_J, J_TO_EV, PI
-   use types, only: particle, sim_params, plasma_params
-   use cross_sections, only: get_all_cross_sections, sigma_cx, sigma_el, sigma_ei
+   use constants, only: dp, M_D_kg, J_TO_EV, PI
+   use data_types, only: particle_t, plasma_params, sim_params
+   use random_utils, only: sample_maxwell_velocity_ion, random_double
+   use cross_sections, only: sigma_cx, sigma_el, sigma_v_max, ionization_rate_coeff
    use cdf_reader, only: sample_scattering_angle
    implicit none
 
-   ! 衝突タイプの定義
+   private
+   public :: advance_particle, evaluate_collision_event
+   public :: collision_cx, collision_el
+   public :: update_weight
+   public :: COLL_NONE, COLL_CX, COLL_EL
+
    integer, parameter :: COLL_NONE = 0
-   integer, parameter :: COLL_CX = 1
-   integer, parameter :: COLL_EL = 2
-   integer, parameter :: COLL_EI = 3
+   integer, parameter :: COLL_CX   = 1
+   integer, parameter :: COLL_EL   = 2
 
 contains
 
-   !-----------------------------------------------------------------------------
-   ! 粒子の推進
-   !-----------------------------------------------------------------------------
-   subroutine advance_particle(p, dt, params)
-      type(particle), intent(inout) :: p
+   subroutine advance_particle(p, dt)
+      type(particle_t), intent(inout) :: p
       real(dp), intent(in) :: dt
-      type(sim_params), intent(in) :: params
 
-      ! 位置の更新
       p%x = p%x + p%vx * dt
-
-      ! 境界チェック（領域外に出たら消滅）
-      if (p%x < params%x_min .or. p%x > params%x_max) then
-         p%alive = .false.
-      end if
-
+      p%y = p%y + p%vy * dt
+      p%z = p%z + p%vz * dt
    end subroutine advance_particle
 
-   !-----------------------------------------------------------------------------
-   ! 衝突判定
-   !-----------------------------------------------------------------------------
-   subroutine check_collision(p, plasma, dt, coll_type, delta_E)
-      type(particle), intent(inout) :: p
+   subroutine update_weight(p, plasma, dt, weight_min)
+      type(particle_t), intent(inout) :: p
       type(plasma_params), intent(in) :: plasma
       real(dp), intent(in) :: dt
-      integer, intent(out) :: coll_type
-      real(dp), intent(out) :: delta_E
+      real(dp), intent(in) :: weight_min
 
-      real(dp) :: v, E_particle
-      real(dp) :: sig_cx, sig_el, sig_ei, sig_total
-      real(dp) :: nu_total, P_coll
-      real(dp) :: rand_coll, rand_type, rand_angle, rand_phi
-      real(dp) :: cum_prob
+      real(dp) :: R_a, P_survive
 
-      coll_type = COLL_NONE
-      delta_E = 0.0d0
+      R_a = plasma%n_e * ionization_rate_coeff(plasma%T_e)
+      if (R_a > 1.0d-30) p%weight = p%weight * exp(-R_a * dt)
 
-      if (.not. p%alive) return
-
-      ! 粒子速度と運動エネルギー
-      v = sqrt(p%vx**2 + p%vy**2 + p%vz**2)
-      if (v < 1.0d-10) return
-
-      E_particle = 0.5d0 * M_D * v**2 * J_TO_EV
-
-      ! 断面積の取得
-      call get_all_cross_sections(E_particle, sig_cx, sig_el, sig_ei, sig_total)
-
-      ! 衝突頻度
-      nu_total = v * plasma%n_bg * sig_total
-
-      ! 衝突確率
-      P_coll = 1.0d0 - exp(-nu_total * dt)
-
-      ! 衝突判定
-      call random_number(rand_coll)
-      if (rand_coll > P_coll) return  ! 衝突なし
-
-      ! 衝突タイプの選択
-      call random_number(rand_type)
-      cum_prob = sig_cx / sig_total
-
-      if (rand_type < cum_prob) then
-         ! 荷電交換
-         coll_type = COLL_CX
-         call process_cx(p, plasma, delta_E)
-      else
-         cum_prob = cum_prob + sig_el / sig_total
-         if (rand_type < cum_prob) then
-            ! 弾性散乱
-            coll_type = COLL_EL
-            call random_number(rand_angle)
-            call random_number(rand_phi)
-            call process_elastic(p, plasma, E_particle, rand_angle, rand_phi, delta_E)
+      if (p%weight < weight_min) then
+         P_survive = 0.1d0
+         if (random_double(p%rng) <= P_survive) then
+            p%weight = p%weight / P_survive
          else
-            ! 電離
-            coll_type = COLL_EI
-            call process_ionization(p, delta_E)
+            p%alive = .false.
          end if
       end if
+   end subroutine update_weight
 
-   end subroutine check_collision
-
-   !-----------------------------------------------------------------------------
-   ! 荷電交換処理
-   ! 速度が背景イオンの熱分布に入れ替わる
-   !-----------------------------------------------------------------------------
-   subroutine process_cx(p, plasma, delta_E)
-      type(particle), intent(inout) :: p
+   subroutine evaluate_collision_event(p, plasma, sim, vx_i, vy_i, vz_i, v_rel, E_rel, coll_type)
+      type(particle_t), intent(inout) :: p
       type(plasma_params), intent(in) :: plasma
+      type(sim_params), intent(in) :: sim
+      real(dp), intent(out) :: vx_i, vy_i, vz_i
+      real(dp), intent(out) :: v_rel
+      real(dp), intent(out) :: E_rel
+      integer, intent(out) :: coll_type
+
+      real(dp) :: sig_cx_val, sig_el_val
+      real(dp) :: sig_cx_eff, sig_el_eff, sig_s_eff
+      real(dp) :: P_accept
+      real(dp) :: r_accept, r_type
+
+      coll_type = COLL_NONE
+      vx_i = 0.0d0
+      vy_i = 0.0d0
+      vz_i = 0.0d0
+      v_rel = 0.0d0
+      E_rel = 0.0d0
+
+      if (sigma_v_max < 1.0d-30) return
+      if (.not. sim%enable_cx .and. .not. sim%enable_el) return
+
+      call sample_maxwell_velocity_ion(p%rng, plasma%T_i, plasma, vx_i, vy_i, vz_i)
+
+      v_rel = sqrt((p%vx - vx_i)**2 + (p%vy - vy_i)**2 + (p%vz - vz_i)**2)
+      E_rel = 0.25d0 * M_D_kg * v_rel * v_rel * J_TO_EV
+
+      sig_cx_val = sigma_cx(E_rel)
+      sig_el_val = sigma_el(E_rel)
+
+      if (sim%enable_cx) then
+         sig_cx_eff = sig_cx_val
+      else
+         sig_cx_eff = 0.0d0
+      end if
+
+      if (sim%enable_el) then
+         sig_el_eff = sig_el_val
+      else
+         sig_el_eff = 0.0d0
+      end if
+
+      sig_s_eff = sig_cx_eff + sig_el_eff
+      if (sig_s_eff <= 1.0d-30) return
+
+      P_accept = sig_s_eff * v_rel / sigma_v_max
+      if (P_accept > 1.0d0) P_accept = 1.0d0
+
+      r_accept = random_double(p%rng)
+      if (r_accept > P_accept) return
+
+      r_type = random_double(p%rng)
+      if (r_type < sig_cx_eff / sig_s_eff) then
+         coll_type = COLL_CX
+      else
+         coll_type = COLL_EL
+      end if
+   end subroutine evaluate_collision_event
+
+   subroutine collision_cx(p, vx_i, vy_i, vz_i, delta_E)
+      type(particle_t), intent(inout) :: p
+      real(dp), intent(in)  :: vx_i, vy_i, vz_i
       real(dp), intent(out) :: delta_E
 
-      real(dp) :: E_before, E_after
-      real(dp) :: v_th, vx_new, vy_new, vz_new
-      real(dp) :: r1, r2, r3, r4
+      real(dp) :: E_old, E_new
 
-      ! 衝突前のエネルギー
-      E_before = 0.5d0 * M_D * (p%vx**2 + p%vy**2 + p%vz**2) * J_TO_EV
+      E_old = 0.5d0 * M_D_kg * (p%vx**2 + p%vy**2 + p%vz**2)
 
-      ! 熱速度
-      v_th = sqrt(plasma%T_bg * EV_TO_J / M_D)
+      p%vx = vx_i
+      p%vy = vy_i
+      p%vz = vz_i
 
-      ! Box-Muller法でガウス分布を生成
-      call random_number(r1)
-      call random_number(r2)
-      call random_number(r3)
-      call random_number(r4)
+      E_new = 0.5d0 * M_D_kg * (p%vx**2 + p%vy**2 + p%vz**2)
+      delta_E = E_new - E_old
+   end subroutine collision_cx
 
-      vx_new = v_th * sqrt(-2.0d0 * log(max(r1, 1.0d-30))) * cos(2.0d0 * PI * r2)
-      vy_new = v_th * sqrt(-2.0d0 * log(max(r1, 1.0d-30))) * sin(2.0d0 * PI * r2)
-      vz_new = v_th * sqrt(-2.0d0 * log(max(r3, 1.0d-30))) * cos(2.0d0 * PI * r4)
-
-      p%vx = vx_new
-      p%vy = vy_new
-      p%vz = vz_new
-
-      ! 衝突後のエネルギー
-      E_after = 0.5d0 * M_D * (p%vx**2 + p%vy**2 + p%vz**2) * J_TO_EV
-
-      delta_E = E_after - E_before
-
-   end subroutine process_cx
-
-   !-----------------------------------------------------------------------------
-   ! 弾性散乱処理
-   ! 散乱角に基づいて速度方向を変更
-   !-----------------------------------------------------------------------------
-   subroutine process_elastic(p, plasma, E_collision, rand_p, rand_phi, delta_E)
-      type(particle), intent(inout) :: p
-      type(plasma_params), intent(in) :: plasma
-      real(dp), intent(in) :: E_collision
-      real(dp), intent(in) :: rand_p, rand_phi
+   subroutine collision_el(p, vx_i, vy_i, vz_i, use_isotropic, delta_E)
+      type(particle_t), intent(inout) :: p
+      real(dp), intent(in)  :: vx_i, vy_i, vz_i
+      logical, intent(in)   :: use_isotropic
       real(dp), intent(out) :: delta_E
 
-      real(dp) :: E_before, E_after
+      real(dp) :: E_old, E_new
+      real(dp) :: vx_g, vy_g, vz_g
+      real(dp) :: ux, uy, uz, u_mag
+      real(dp) :: ux_n, uy_n, uz_n
       real(dp) :: chi, phi
-      real(dp) :: vx_cm, vy_cm, vz_cm  ! 重心系速度
-      real(dp) :: vx_rel, vy_rel, vz_rel, v_rel  ! 相対速度
-      real(dp) :: sin_chi, cos_chi, sin_phi, cos_phi
-      real(dp) :: ex, ey, ez, e_perp
-      real(dp) :: vx_new, vy_new, vz_new
-      real(dp) :: v_bg_th, vx_bg, vy_bg, vz_bg
-      real(dp) :: r1, r2, r3, r4
+      real(dp) :: r_chi, E_rel
 
-      E_before = 0.5d0 * M_D * (p%vx**2 + p%vy**2 + p%vz**2) * J_TO_EV
+      E_old = 0.5d0 * M_D_kg * (p%vx**2 + p%vy**2 + p%vz**2)
 
-      ! 背景イオンの熱速度
-      v_bg_th = sqrt(plasma%T_bg * EV_TO_J / M_D)
+      vx_g = 0.5d0 * (p%vx + vx_i)
+      vy_g = 0.5d0 * (p%vy + vy_i)
+      vz_g = 0.5d0 * (p%vz + vz_i)
 
-      ! 背景イオンの速度をサンプリング
-      call random_number(r1)
-      call random_number(r2)
-      call random_number(r3)
-      call random_number(r4)
-      vx_bg = v_bg_th * sqrt(-2.0d0 * log(max(r1, 1.0d-30))) * cos(2.0d0 * PI * r2)
-      vy_bg = v_bg_th * sqrt(-2.0d0 * log(max(r1, 1.0d-30))) * sin(2.0d0 * PI * r2)
-      vz_bg = v_bg_th * sqrt(-2.0d0 * log(max(r3, 1.0d-30))) * cos(2.0d0 * PI * r4)
+      ux = p%vx - vx_i
+      uy = p%vy - vy_i
+      uz = p%vz - vz_i
+      u_mag = sqrt(ux * ux + uy * uy + uz * uz)
 
-      ! 重心速度（等質量なので平均）
-      vx_cm = 0.5d0 * (p%vx + vx_bg)
-      vy_cm = 0.5d0 * (p%vy + vy_bg)
-      vz_cm = 0.5d0 * (p%vz + vz_bg)
-
-      ! 相対速度
-      vx_rel = p%vx - vx_bg
-      vy_rel = p%vy - vy_bg
-      vz_rel = p%vz - vz_bg
-      v_rel = sqrt(vx_rel**2 + vy_rel**2 + vz_rel**2)
-
-      if (v_rel < 1.0d-30) then
+      if (u_mag < 1.0d-30) then
          delta_E = 0.0d0
          return
       end if
 
-      ! 散乱角のサンプリング
-      chi = sample_scattering_angle(E_collision, rand_p)
-      phi = 2.0d0 * PI * rand_phi
-
-      sin_chi = sin(chi)
-      cos_chi = cos(chi)
-      sin_phi = sin(phi)
-      cos_phi = cos(phi)
-
-      ! 相対速度の単位ベクトル
-      ex = vx_rel / v_rel
-      ey = vy_rel / v_rel
-      ez = vz_rel / v_rel
-
-      ! 垂直方向の基底ベクトル
-      if (abs(ez) > 0.9d0) then
-         e_perp = sqrt(ex**2 + ey**2)
-         if (e_perp > 1.0d-10) then
-            ! ロドリゲスの回転公式を適用
-            vx_new = v_rel * (sin_chi * (-ey * cos_phi / e_perp) + cos_chi * ex)
-            vy_new = v_rel * (sin_chi * (ex * cos_phi / e_perp) + cos_chi * ey)
-            vz_new = v_rel * (sin_chi * sin_phi + cos_chi * ez)
-         else
-            vx_new = v_rel * sin_chi * cos_phi
-            vy_new = v_rel * sin_chi * sin_phi
-            vz_new = v_rel * cos_chi
-         end if
+      if (use_isotropic) then
+         r_chi = random_double(p%rng)
+         chi = acos(1.0d0 - 2.0d0 * r_chi)
       else
-         e_perp = sqrt(ex**2 + ez**2)
-         if (e_perp > 1.0d-10) then
-            vx_new = v_rel * (sin_chi * (-ez * cos_phi / e_perp) + cos_chi * ex)
-            vy_new = v_rel * (sin_chi * sin_phi + cos_chi * ey)
-            vz_new = v_rel * (sin_chi * (ex * cos_phi / e_perp) + cos_chi * ez)
-         else
-            vx_new = v_rel * sin_chi * cos_phi
-            vy_new = v_rel * cos_chi
-            vz_new = v_rel * sin_chi * sin_phi
-         end if
+         E_rel = 0.25d0 * M_D_kg * u_mag * u_mag * J_TO_EV
+         r_chi = random_double(p%rng)
+         chi = sample_scattering_angle(0.5d0 * E_rel, r_chi)
       end if
 
-      ! 実験室系に戻す
-      p%vx = vx_cm + 0.5d0 * vx_new
-      p%vy = vy_cm + 0.5d0 * vy_new
-      p%vz = vz_cm + 0.5d0 * vz_new
+      phi = 2.0d0 * PI * random_double(p%rng)
+      call rotate_vector(ux, uy, uz, chi, phi, ux_n, uy_n, uz_n)
 
-      E_after = 0.5d0 * M_D * (p%vx**2 + p%vy**2 + p%vz**2) * J_TO_EV
-      delta_E = E_after - E_before
+      p%vx = vx_g + 0.5d0 * ux_n
+      p%vy = vy_g + 0.5d0 * uy_n
+      p%vz = vz_g + 0.5d0 * uz_n
 
-   end subroutine process_elastic
+      E_new = 0.5d0 * M_D_kg * (p%vx**2 + p%vy**2 + p%vz**2)
+      delta_E = E_new - E_old
+   end subroutine collision_el
 
-   !-----------------------------------------------------------------------------
-   ! 電離処理
-   ! 粒子は電離後イオン化され追跡終了
-   !-----------------------------------------------------------------------------
-   subroutine process_ionization(p, delta_E)
-      type(particle), intent(inout) :: p
-      real(dp), intent(out) :: delta_E
+   subroutine rotate_vector(ux, uy, uz, chi, phi, ux_n, uy_n, uz_n)
+      real(dp), intent(in)  :: ux, uy, uz
+      real(dp), intent(in)  :: chi, phi
+      real(dp), intent(out) :: ux_n, uy_n, uz_n
 
-      real(dp), parameter :: E_ionize = 13.6d0  ! 電離エネルギー [eV]
+      real(dp) :: u_mag, u_perp
+      real(dp) :: cos_chi, sin_chi, cos_phi, sin_phi
+      real(dp) :: nx, ny, nz
 
-      ! 電離エネルギー分を失う
-      delta_E = -E_ionize
+      u_mag = sqrt(ux * ux + uy * uy + uz * uz)
+      if (u_mag < 1.0d-30) then
+         ux_n = ux
+         uy_n = uy
+         uz_n = uz
+         return
+      end if
 
-      ! 粒子は電離されて消滅（イオン化）
-      p%alive = .false.
+      cos_chi = cos(chi)
+      sin_chi = sin(chi)
+      cos_phi = cos(phi)
+      sin_phi = sin(phi)
 
-   end subroutine process_ionization
+      nx = ux / u_mag
+      ny = uy / u_mag
+      nz = uz / u_mag
 
-   !-----------------------------------------------------------------------------
-   ! Maxwell分布から速度を生成
-   !-----------------------------------------------------------------------------
-   subroutine sample_maxwell_velocity(T_eV, vx, vy, vz)
-      real(dp), intent(in) :: T_eV  ! 温度 [eV]
-      real(dp), intent(out) :: vx, vy, vz
-
-      real(dp) :: v_th, r1, r2, r3, r4
-
-      v_th = sqrt(T_eV * EV_TO_J / M_D)
-
-      call random_number(r1)
-      call random_number(r2)
-      call random_number(r3)
-      call random_number(r4)
-
-      vx = v_th * sqrt(-2.0d0 * log(max(r1, 1.0d-30))) * cos(2.0d0 * PI * r2)
-      vy = v_th * sqrt(-2.0d0 * log(max(r1, 1.0d-30))) * sin(2.0d0 * PI * r2)
-      vz = v_th * sqrt(-2.0d0 * log(max(r3, 1.0d-30))) * cos(2.0d0 * PI * r4)
-
-   end subroutine sample_maxwell_velocity
-
-   !-----------------------------------------------------------------------------
-   ! 単一方向の速度を指定エネルギーで生成
-   !-----------------------------------------------------------------------------
-   subroutine set_mono_velocity(E_eV, direction, vx, vy, vz)
-      real(dp), intent(in) :: E_eV       ! エネルギー [eV]
-      integer, intent(in) :: direction   ! 1: +x, -1: -x
-      real(dp), intent(out) :: vx, vy, vz
-
-      real(dp) :: v_mag
-
-      v_mag = sqrt(2.0d0 * E_eV * EV_TO_J / M_D)
-
-      vx = v_mag * direction
-      vy = 0.0d0
-      vz = 0.0d0
-
-   end subroutine set_mono_velocity
+      u_perp = sqrt(nx * nx + ny * ny)
+      if (u_perp > 1.0d-10) then
+         ux_n = u_mag * (nx * cos_chi + &
+            (nx * nz * cos_phi - ny * sin_phi) * sin_chi / u_perp)
+         uy_n = u_mag * (ny * cos_chi + &
+            (ny * nz * cos_phi + nx * sin_phi) * sin_chi / u_perp)
+         uz_n = u_mag * (nz * cos_chi - u_perp * cos_phi * sin_chi)
+      else
+         ux_n = u_mag * sin_chi * cos_phi
+         uy_n = u_mag * sin_chi * sin_phi
+         uz_n = u_mag * cos_chi * sign(1.0d0, nz)
+      end if
+   end subroutine rotate_vector
 
 end module dynamics

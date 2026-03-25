@@ -1,62 +1,99 @@
-# モンテカルロ中性粒子輸送シミュレーション
+# 1D3V Monte Carlo Simulation
 
-1次元空間・3次元速度空間における中性粒子（重水素）の輸送をモンテカルロ法でシミュレートするFortranコードです。
+`1D3V` は、空間の扱いを `x` のみに限定しつつ、粒子の位置と速度は内部的に `x,y,z,vx,vy,vz` を追跡する中性粒子輸送コードです。実装は `3d3v_lookup` 系の event-driven / null-collision / non-analog 重み更新を基準にそろえています。
 
 ## 特徴
-- **物理過程**: 荷電交換(CX)、弾性散乱(EL)、電子衝突電離(EI)
-- **スコアリング**: Collision Estimator (CL法) と Track-Length Estimator (TL法) の併用
-- **出力**: 物理単位（W/m², m⁻³）でのパワー密度および粒子密度分布
+
+- `x` 方向だけを空間ビニングし、`y,z` は自由飛行の内部座標として保持
+- CX / EL / EI を考慮
+- 粒子固有 RNG による再現性確保
+- EL CDF の `0.5 * E_rel` 補正と `xs_mult` 読み出しを反映
+- 標準では `CL` と `TL` を出力し、`enable_tl_lookup=.true.` のときだけ `TLLu` を追加
 
 ## ディレクトリ構成
-```
-project/
-├── code/              # ソースコード
-│   ├── constants.f90      # 物理定数
-│   ├── types.f90          # データ型定義
-│   ├── cdf_reader.f90     # CDFファイル読み込み
-│   ├── cross_sections.f90 # 断面積計算
-│   ├── scoring.f90        # スコアリング
-│   ├── dynamics.f90       # 粒子推進・衝突
-│   ├── io.f90             # 入出力処理
-│   └── main.f90           # メインプログラム
-├── run/               # 実行ディレクトリ
-│   ├── input.nml          # 入力パラメータファイル
-│   └── dd_00_elastic.cdf  # 断面積データファイル
-├── Makefile           # ビルドファイル
-└── README.md          # 本マニュアル
+
+```text
+1D3V/
+├── code/
+├── module/
+├── run/
+├── Makefile
+├── README.md
+└── plot_results.py
 ```
 
-## コンパイルと実行
+## ビルドと実行
+
 ```bash
 make
 cd run
-./monte_carlo
+./monte_carlo_1d3v
+cd ..
+python3 plot_results.py
 ```
 
-## 入力パラメータ (input.nml)
-```fortran
-&simulation
-  n_particles = 10000    ! テスト粒子数
-  n_steps     = 10000    ! ステップ数
-  n_grid      = 100      ! グリッド数
-  dt          = 1.0d-8   ! 時間刻み [s]
-  x_min       = 0.0d0    ! 領域下限 [m]
-  x_max       = 0.1d0    ! 領域上限 [m]
-  output_file = 'ntscrg.csv' ! パワー出力ファイル
-/
+OpenMP フラグ付きビルド:
 
-&plasma_nml
-  n_bg = 1.0d19  ! 背景イオン密度 [m^-3]
-  T_bg = 2.0d0   ! 背景イオン温度 [eV]
-  T_e  = 2.0d0   ! 電子温度 [eV]
-/
-
-&particle_init
-  gamma_in = 1.0d23  ! 入射粒子フラックス [m^-2 s^-1]
-  E_init   = 5.0d0   ! 初期エネルギー [eV]
-/
+```bash
+make OPENMP=1
 ```
+
+## 入力ファイル
+
+`run/input.nml` は次の 4 セクションを持ちます。
+
+- `simulation`
+  - `n_particles, n_steps, n_x_bins, dt`
+  - `x_min, x_max, gamma_in`
+  - `enable_cx, enable_el, enable_ei, use_isotropic, enable_tl_lookup`
+  - `weight_min`
+  - `cdf_file, output_ntscrg, output_profile, output_hist, output_deltaE_hist`
+- `plasma_nml`
+  - `n_i, T_i, n_e, T_e, u_x, u_y, u_z`
+- `particle_init`
+  - `x_init, y_init, z_init, E_init, T_init, init_mode`
+- `diagnostics`
+  - `output_interval`
+  - `n_hist_bins, E_hist_min, E_hist_max, hist_timing`
+  - `n_dE_bins, dE_hist_min, dE_hist_max, dE_collect_steps`
 
 ## 出力ファイル
-- **ntscrg.csv**: 各反応（CX, EL, EI）によるパワー密度分布 [W/m²]
-- **ntden.csv**: 中性粒子密度分布 [m⁻³]（フラックス密度換算）
+
+- `run/ntscrg.csv`
+  - 1 ステップ 1 行の全体時系列
+  - `CL_Q_*[W/m3]`, `TL_Q_*[W/m3]`
+  - `enable_tl_lookup=.true.` のときだけ `TLLu_Q_*[W/m3]`
+- `run/profile_x.csv`
+  - `x` ビンごとの最終空間分布
+  - `neutral_density[m-3]`
+  - `CL_Q_*[W/m3]`, `TL_Q_*[W/m3]`
+  - `collision_count_*_per_history[-]`
+  - `enable_tl_lookup=.true.` のときだけ `TLLu_Q_*[W/m3]`
+- `run/energy_hist.csv`
+  - 生存粒子エネルギー分布の履歴
+- `run/deltaE_hist.csv`
+  - `enable_tl_lookup=.true.` のときのみ出力
+
+## 正規化
+
+- 時系列の全体ソース:
+  - `Q_global = score_step[J] * gamma_in / (N_particles * dt * Lx)`
+- 空間プロファイルの局所パワー密度:
+  - `Q_x = score_bin[J] * gamma_in / (N_particles * total_time * dx)`
+- 中性粒子密度:
+  - `n_x = residence_eff[s] * gamma_in / (N_particles * dx)`
+
+ここで `residence_eff` は non-analog 重みを含んだ有効滞在時間です。
+
+## Lookup モードについて
+
+`dd_00_elastic.cdf` に含まれる `I_1_x` には内部不整合の可能性があるため、`TLLu` は標準では無効です。比較診断をしたいときだけ `enable_tl_lookup=.true.` を使ってください。
+
+## 可視化
+
+`plot_results.py` は以下を作成します。
+
+- `run/figure/1d3v_summary.png`
+- `run/figure/1d3v_profiles.png`
+
+`ntscrg.csv` と `profile_x.csv` の列を自動判別し、lookup 列があれば同じ図に重ねて描画します。
