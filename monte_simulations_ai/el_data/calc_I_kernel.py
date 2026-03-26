@@ -8,8 +8,18 @@ from scipy.interpolate import interp1d
 print("Starting calc_I_kernel.py...", flush=True)
 
 # File paths
-IN_CDF = '../test/cdf_change/dd_00_elastic_pure_el_angle.cdf'
-OUT_CDF = 'dd_00_elastic_pure_el_angle_fixed.cdf'
+DEFAULT_IN_CDF = '../test/cdf_change/dd_00_elastic_pure_el_angle.cdf'
+DEFAULT_OUT_CDF = 'dd_00_elastic_pure_el_angle_fixed.cdf'
+
+if len(sys.argv) >= 2:
+    IN_CDF = sys.argv[1]
+else:
+    IN_CDF = DEFAULT_IN_CDF
+
+if len(sys.argv) >= 3:
+    OUT_CDF = sys.argv[2]
+else:
+    OUT_CDF = DEFAULT_OUT_CDF
 
 def parse_array(text, name):
     pat = re.compile(rf'\b{re.escape(name)}\s*=\s*(.*?)\s*;', re.DOTALL)

@@ -90,6 +90,57 @@ Event-driven Monte Carlo Simulation
   2. angle-sampling に基づく愚直 TL/CL と、`I_1_x` に基づく lookup EL は、
      低エネルギー域ではそもそも数値的に大きくずれうる
 
+### 6. 追加検証で確定したこと
+
+- `dd_00_elastic.cdf` と `dd_00_elastic_pure_el_angle_fixed.cdf` の両方について、
+  `sigma_tot + theta(R,E)` から `sigma^(1)` と `I_1_x` を再構成する検証を再実施した。
+
+- `dd_00_elastic.cdf` では再確認しても
+  `reaction_rate` は整合する一方、
+  `I_1_0 / I_1_1 / I_1_2` は保存値と大きくずれた。
+  したがって、この CDF の保存済み `I_1_x` を
+  `sigma_tot + theta` と同一視してはいけない。
+
+- `dd_00_elastic_pure_el_angle_fixed.cdf` では、
+  `reaction_rate` と `I_1_x` は機械精度レベルで再現した。
+  したがって `calc_I_kernel.py` の再積分ロジック自体は妥当であり、
+  `fixed` 側の table は内部整合している。
+
+- EL について、愚直 `CL` と愚直 `TL` が一致しているケースでは、
+  estimator 形式そのもの
+  (`collision estimator` か `track-length estimator` か)
+  が主因である可能性は低い。
+
+- `sp0 / dtr_eng` を用いた lookup EL を、
+  同じ CDF からの直接 angle-sampling 平均と比較すると、
+  平衡から離れた条件では符号とオーダーは概ね一致した。
+  したがって `dtr_eng` は少なくとも実質的には
+  `test neutral` 側の EL power と読んでよく、
+  `bulk ion power` と比較していたことが
+  主因である可能性は低い。
+
+- 一方で `T_n ~= T_i` の近傍では、
+  net EL power が非常に小さい差分になるため、
+  direct average 側も lookup 側も相対差が大きく見えやすい。
+  等質量・低温・熱平衡近傍での差分増幅は、
+  実際に観測された大きな比の一因と考えられる。
+
+### 7. 軸定義の点検結果
+
+- CDF の elastic 断面積軸は `specific_energy [eV/amu]`。
+  実装側で `0.5 * E_rel` を渡す現在の扱いはこの軸と整合している。
+
+- 散乱角テーブル `scattering_angle` は
+  `random_num x E[eV/amu]` の 2 次元表で、
+  値そのものは `theta [rad]` である。
+  少なくとも現在の CDF 読み出しでは、
+  `cos(theta)` を直接保持しているわけではない。
+
+- したがって、現時点では
+  `E_rel [eV]` と `E [eV/amu]` の取り違えや、
+  `theta` と `cos(theta)` の取り違えは、
+  lookup EL の大差の主因ではない。
+
 ## 現時点の結論
 
 - 実装上の obvious bug は一通り修正済み。
@@ -99,3 +150,17 @@ Event-driven Monte Carlo Simulation
 - 今後の検証では、
   `saved I_1_x` と `sigma_tot + theta から再生成した I_1_x` を
   切り替えて比較できるようにしておくのが有効。
+
+- 現在の重心は、
+  「naive TL が正しいか」よりも
+  「naive angle-sampling kernel と lookup の `I_1_x` kernel が
+  本当に同じ collision operator を表しているか」
+  の検証に移っている。
+
+- 次に優先すべきなのは、
+  1. `sigma_tot + theta` から `sigma^(1)` を明示的に再構成して
+     `I_1_x` と対応付けること
+  2. full simulation で実際に現れている中性粒子速度分布に対して、
+     外部で評価した lookup 平均とコード内 `TLLookup_EL` を
+     直接比較すること
+  の 2 点である。
