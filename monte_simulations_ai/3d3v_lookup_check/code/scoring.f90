@@ -18,7 +18,7 @@ module scoring
    public :: score_collision_estimator, score_track_length_estimator
    public :: score_inner_multi_track_length, score_pretabulated_track_length
    public :: score_table_lookup_track_length
-   public :: tl_el_sample_once, tl_el_sample_avg
+   public :: tl_el_sample_once, tl_el_sample_avg, tl_el_sample_stats
 
 contains
 
@@ -221,19 +221,49 @@ contains
       integer, intent(in)             :: n_inner
       real(dp) :: s_c_el_avg
 
+      real(dp) :: variance_dummy, stddev_dummy, stderr_dummy
+
+      call tl_el_sample_stats(p, plasma, use_isotropic, n_inner, s_c_el_avg, &
+         variance_dummy, stddev_dummy, stderr_dummy)
+   end function tl_el_sample_avg
+
+   subroutine tl_el_sample_stats(p, plasma, use_isotropic, n_samples_in, mean_rate, &
+      variance_rate, stddev_rate, stderr_rate)
+      type(particle_t), intent(in)    :: p
+      type(plasma_params), intent(in) :: plasma
+      logical, intent(in)             :: use_isotropic
+      integer, intent(in)             :: n_samples_in
+      real(dp), intent(out)           :: mean_rate
+      real(dp), intent(out)           :: variance_rate
+      real(dp), intent(out)           :: stddev_rate
+      real(dp), intent(out)           :: stderr_rate
+
       integer :: m, n_samples
-      real(dp) :: sum_rate
+      real(dp) :: sample_rate, delta, delta2, m2
       type(rng_state) :: rng_work
 
-      n_samples = max(1, n_inner)
+      n_samples = max(1, n_samples_in)
       rng_work = p%rng
-      sum_rate = 0.0d0
+      mean_rate = 0.0d0
+      m2 = 0.0d0
+
       do m = 1, n_samples
-         sum_rate = sum_rate + tl_el_sample_once_with_rng(p, plasma, use_isotropic, rng_work)
+         sample_rate = tl_el_sample_once_with_rng(p, plasma, use_isotropic, rng_work)
+         delta = sample_rate - mean_rate
+         mean_rate = mean_rate + delta / real(m, dp)
+         delta2 = sample_rate - mean_rate
+         m2 = m2 + delta * delta2
       end do
 
-      s_c_el_avg = sum_rate / real(n_samples, dp)
-   end function tl_el_sample_avg
+      if (n_samples >= 2) then
+         variance_rate = m2 / real(n_samples - 1, dp)
+      else
+         variance_rate = 0.0d0
+      end if
+      variance_rate = max(0.0d0, variance_rate)
+      stddev_rate = sqrt(variance_rate)
+      stderr_rate = stddev_rate / sqrt(real(n_samples, dp))
+   end subroutine tl_el_sample_stats
 
    function tl_el_sample_once_with_rng(p, plasma, use_isotropic, rng_work) result(s_c_el)
       type(particle_t), intent(in)    :: p

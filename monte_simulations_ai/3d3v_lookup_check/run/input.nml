@@ -58,4 +58,6 @@
 &tl_el_table_builder
     n_table_samples = 2000
     output_file     = 'tl_el_table.dat'
+    stats_output_file = 'tl_el_table_stats.csv'
+    rel_stderr_thresholds = 0.01d0, 0.05d0, 0.10d0
 /
