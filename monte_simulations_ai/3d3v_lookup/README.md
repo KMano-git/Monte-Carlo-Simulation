@@ -141,6 +141,62 @@ Event-driven Monte Carlo Simulation
   `theta` と `cos(theta)` の取り違えは、
   lookup EL の大差の主因ではない。
 
+### 8. `dd_00_elastic_regen.cdf` の生成と比較
+
+- `calc_I_kernel.py` を引数対応にし、
+  `dd_00_elastic.cdf` から
+  `reaction_rate` と `I_1_x` を再生成した
+  `dd_00_elastic_regen.cdf` を作成した。
+
+- `dd_00_elastic_regen.cdf` については、
+  `sigma_tot + theta(R,E)` から再積分した
+  `reaction_rate / I_1_x` がすべて機械精度レベルで一致した。
+  したがって、この regen CDF は内部整合している。
+
+- 同条件比較では、
+  元の `dd_00_elastic.cdf` に対して
+  `dd_00_elastic_regen.cdf` を使うと
+  `TLLookup_EL` は大きく低下した。
+
+- 例: ほぼ熱平衡に近い条件では
+  `TLLookup_EL` が
+  `3.405080E+07 -> 1.065233E+07 W/m3`
+  まで低下した。
+  これは、元 `dd_00_elastic.cdf` の保存済み `I_1_x` が
+  lookup EL を数倍押し上げていたことを示している。
+
+- ただし regen CDF を使っても、
+  `CL_EL / TL_EL` に対する `TLLookup_EL` の過大化は残る。
+  したがって、`dd_00_elastic.cdf` の内部不整合は
+  大きな要因の一つだが、
+  EL の全残差を説明する主因ではない。
+
+### 9. `T_n > T_i` の非平衡条件で分かったこと
+
+- `T_i = 2 eV`, `T_n = 10 eV` の条件で比較すると、
+  愚直 `CL_EL` と愚直 `TL_EL` は非常によく一致した。
+
+- この条件での time-averaged 結果:
+  - `dd_00_elastic.cdf`:
+    `CL_EL = 4.388447E+06`, `TL_EL = 4.381610E+06`,
+    `TLLookup_EL = 3.366017E+07 W/m3`
+  - `dd_00_elastic_regen.cdf`:
+    `CL_EL = 4.388447E+06`, `TL_EL = 4.381610E+06`,
+    `TLLookup_EL = 1.176928E+07 W/m3`
+
+- つまり、`T_n > T_i` のように
+  net EL power が十分大きい条件でも、
+  `regen` 化によって `TLLookup_EL` は
+  約 `7.7x -> 2.7x` まで改善するが、
+  なお愚直 estimator より系統的に大きい。
+
+- この結果から、
+  `T_n ~= T_i` 近傍の差分増幅だけが
+  大差の原因ではないことが分かった。
+  非平衡条件でも lookup EL の残差は残るため、
+  物理モデル / transport-kernel 側の不一致を
+  真面目に疑うべき段階に入っている。
+
 ## 現時点の結論
 
 - 実装上の obvious bug は一通り修正済み。
@@ -150,6 +206,12 @@ Event-driven Monte Carlo Simulation
 - 今後の検証では、
   `saved I_1_x` と `sigma_tot + theta から再生成した I_1_x` を
   切り替えて比較できるようにしておくのが有効。
+
+- lookup 実装の比較基準としては、
+  元の `dd_00_elastic.cdf` より
+  `dd_00_elastic_regen.cdf` を使う方が適切である。
+  元 CDF は「実データ由来の入力」として重要だが、
+  lookup table の自己整合検証には向かない。
 
 - 現在の重心は、
   「naive TL が正しいか」よりも
@@ -164,3 +226,9 @@ Event-driven Monte Carlo Simulation
      外部で評価した lookup 平均とコード内 `TLLookup_EL` を
      直接比較すること
   の 2 点である。
+
+- あわせて、`EL-only` かつ
+  `T_n > T_i`, `T_n < T_i`, `T_n ~= T_i`
+  の 3 条件を `regen.cdf` 基準で比較し、
+  near-equilibrium 由来の差分増幅と
+  kernel そのものの不一致を切り分けるのが有効である。
