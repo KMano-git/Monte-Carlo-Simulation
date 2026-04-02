@@ -47,7 +47,8 @@ contains
 
       real(dp) :: R_a, P_survive
 
-      R_a = plasma%n_e * ionization_rate_coeff(plasma%T_e)
+      R_a = plasma%electron_density * &
+         ionization_rate_coeff(plasma%electron_temperature_eV)
 
       if (R_a > 1.0d-30) then
          p%weight = p%weight * exp(-R_a * dt)
@@ -92,7 +93,8 @@ contains
       if (.not. sim%enable_cx .and. .not. sim%enable_el) return
 
       !背景イオン速度のサンプリング
-      call sample_maxwell_velocity_ion(p%rng, plasma%T_i, plasma, vx_i, vy_i, vz_i)
+      call sample_maxwell_velocity_ion(p%rng, plasma%ion_temperature_eV, &
+         plasma, vx_i, vy_i, vz_i)
 
       !相対速度
       v_rel = sqrt((p%vx - vx_i)**2 + (p%vy - vy_i)**2 + (p%vz - vz_i)**2)

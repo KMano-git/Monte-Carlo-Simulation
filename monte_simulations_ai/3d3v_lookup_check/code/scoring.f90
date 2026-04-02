@@ -1,21 +1,23 @@
 !===============================================================================
 ! Module: scoring
-! Collision Estimator (CL) と Track-Length Estimator (TL) の実装
+! Elastic analog / collision / track-length scoring, plus comparison variants
 !===============================================================================
 module scoring
    use constants, only: dp, M_D_kg, EV_TO_J, J_TO_EV, PI
    use data_types, only: particle_t, plasma_params, score_data, rng_state
    use cross_sections, only: sigma_cx, sigma_el, ionization_rate_coeff
    use random_utils, only: sample_maxwell_velocity_ion, random_double
-   use cdf_reader, only: sample_scattering_angle, get_I_1_0, get_I_1_1_up, &
-      get_I_1_2_up2
+   use cdf_reader, only: sample_scattering_angle, get_reaction_rate, get_I_1_0, &
+      get_I_1_1_up, get_I_1_2_up2
    use tl_el_table_reader, only: get_tl_el_rate_from_table
    implicit none
 
    real(dp), parameter :: TLMT_EL = 0.9d0
+   real(dp), parameter :: SCORE_TINY = 1.0d-30
 
    private
-   public :: score_collision_estimator, score_track_length_estimator
+   public :: score_analog_elastic, score_collision_estimator
+   public :: score_inner_multi_collision_el, score_track_length_estimator
    public :: score_inner_multi_track_length, score_pretabulated_track_length
    public :: score_table_lookup_track_length
    public :: tl_el_sample_once, tl_el_sample_avg, tl_el_sample_stats
@@ -23,129 +25,196 @@ module scoring
 contains
 
    !---------------------------------------------------------------------------
+   ! Analog estimator for elastic collisions
+   ! 実際に起きた EL 衝突の実現値をそのまま score する
+   !---------------------------------------------------------------------------
+   subroutine score_analog_elastic(p, delta_E_el, score)
+      type(particle_t), intent(in)    :: p
+      real(dp), intent(in)            :: delta_E_el
+      type(score_data), intent(inout) :: score
+
+      score%a_el = score%a_el + p%weight * (-delta_E_el)
+   end subroutine score_analog_elastic
+
+   !---------------------------------------------------------------------------
    ! Collision Estimator (CL)
-   ! 実衝突（Rejection通過後）時のみ呼び出す
-   ! s_CL = w_k * (R_a/R_s * s_a + s_s)
+   ! アクセプトされた scatter collision ごとに、
+   ! CX/EL の期待寄与を両方 score する
    !---------------------------------------------------------------------------
    subroutine score_collision_estimator(p, plasma, vx_i, vy_i, vz_i, &
-      v_rel, E_rel, coll_type, delta_E_el, enable_ei, score)
+      v_rel, E_rel, enable_cx, enable_el, enable_ionization, score)
       type(particle_t), intent(in)    :: p
       type(plasma_params), intent(in) :: plasma
-      real(dp), intent(in)  :: vx_i, vy_i, vz_i
-      real(dp), intent(in)  :: v_rel
-      real(dp), intent(in)  :: E_rel
-      integer, intent(in)   :: coll_type
-      real(dp), intent(in)  :: delta_E_el
-      logical, intent(in)   :: enable_ei
+      real(dp), intent(in)            :: vx_i, vy_i, vz_i
+      real(dp), intent(in)            :: v_rel
+      real(dp), intent(in)            :: E_rel
+      logical, intent(in)             :: enable_cx
+      logical, intent(in)             :: enable_el
+      logical, intent(in)             :: enable_ionization
       type(score_data), intent(inout) :: score
 
       real(dp) :: E_kin
       real(dp) :: R_cx, R_el, R_s, R_a
-      real(dp) :: s_a, s_cx, s_el
+      real(dp) :: s_a, s_cx
       real(dp) :: sig_cx_val, sig_el_val
+      real(dp) :: s_el_lookup, rate_el_dummy, reaction_rate_dummy
 
       E_kin = 0.5d0 * M_D_kg * (p%vx**2 + p%vy**2 + p%vz**2)
 
       sig_cx_val = sigma_cx(E_rel)
       sig_el_val = sigma_el(E_rel)
 
-      R_cx = plasma%n_i * sig_cx_val * v_rel
-      R_el = plasma%n_i * sig_el_val * v_rel
-      R_s  = R_cx + R_el
+      if (enable_cx) then
+         R_cx = plasma%ion_density * sig_cx_val * v_rel
+      else
+         R_cx = 0.0d0
+      end if
 
-      if (enable_ei) then
-         R_a = plasma%n_e * ionization_rate_coeff(plasma%T_e)
+      if (enable_el) then
+         R_el = plasma%ion_density * sig_el_val * v_rel
+      else
+         R_el = 0.0d0
+      end if
+      R_s = R_cx + R_el
+
+      if (enable_ionization) then
+         R_a = plasma%electron_density * &
+            ionization_rate_coeff(plasma%electron_temperature_eV)
       else
          R_a = 0.0d0
       end if
 
       s_a = E_kin
       s_cx = E_kin - 0.5d0 * M_D_kg * (vx_i**2 + vy_i**2 + vz_i**2)
-      s_el = -delta_E_el
 
-      if (R_s > 1.0d-30) then
+      if (R_s > SCORE_TINY) then
          score%cl_ei = score%cl_ei + p%weight * (R_a / R_s) * s_a
-
-         if (coll_type == 1) then
-            score%cl_cx = score%cl_cx + p%weight * s_cx
-         else if (coll_type == 2) then
-            score%cl_el = score%cl_el + p%weight * s_el
+         score%cl_cx = score%cl_cx + p%weight * (R_cx / R_s) * s_cx
+         if (enable_el) then
+            call compute_el_lookup_rate_and_score(p, plasma, rate_el_dummy, &
+               reaction_rate_dummy, s_el_lookup)
+            score%cl_el = score%cl_el + p%weight * (R_el / R_s) * s_el_lookup
          end if
       end if
-
    end subroutine score_collision_estimator
 
    !---------------------------------------------------------------------------
-   ! Track-Length Estimator (TL)
-   ! 実衝突までに蓄積した pending_eff_time をまとめてスコアする
+   ! EL inner multi-sampling CL
+   ! 背景イオン速度と散乱角を内側サンプリングして、1 collision あたり期待寄与を作る
+   !---------------------------------------------------------------------------
+   subroutine score_inner_multi_collision_el(p, plasma, E_rel, enable_cx, enable_el, &
+      use_isotropic, n_inner, score)
+      type(particle_t), intent(in)    :: p
+      type(plasma_params), intent(in) :: plasma
+      real(dp), intent(in)            :: E_rel
+      logical, intent(in)             :: enable_cx, enable_el
+      logical, intent(in)             :: use_isotropic
+      integer, intent(in)             :: n_inner
+      type(score_data), intent(inout) :: score
+
+      real(dp) :: s_el_avg, sig_cx_val, sig_el_val, weight_el
+
+      if (.not. enable_el) return
+
+      if (enable_cx) then
+         sig_cx_val = sigma_cx(E_rel)
+      else
+         sig_cx_val = 0.0d0
+      end if
+      sig_el_val = sigma_el(E_rel)
+
+      s_el_avg = cl_el_sample_avg(p, plasma, use_isotropic, n_inner)
+      if (sig_cx_val + sig_el_val > SCORE_TINY) then
+         weight_el = sig_el_val / (sig_cx_val + sig_el_val)
+      else
+         weight_el = 0.0d0
+      end if
+
+      score%cl_inner_el = score%cl_inner_el + p%weight * weight_el * s_el_avg
+   end subroutine score_inner_multi_collision_el
+
+   !---------------------------------------------------------------------------
+   ! Track-Length Estimator (TR, lookup mainline)
+   ! 実衝突までに蓄積した pending_eff_time に、lookup ベースの期待 rate を掛ける
    !---------------------------------------------------------------------------
    subroutine score_track_length_estimator(p, plasma, pending_eff_time, &
-      use_isotropic, enable_cx, enable_el, enable_ei, score)
+      enable_cx, enable_el, enable_ionization, score)
       type(particle_t), intent(in)    :: p
       type(plasma_params), intent(in) :: plasma
       real(dp), intent(in)            :: pending_eff_time
-      logical, intent(in)             :: use_isotropic
-      logical, intent(in)             :: enable_cx, enable_el, enable_ei
+      logical, intent(in)             :: enable_cx, enable_el, enable_ionization
       type(score_data), intent(inout) :: score
 
       real(dp) :: E_kin
-      real(dp) :: R_cx_d
       real(dp) :: s_c_ei, s_c_cx, s_c_el
       real(dp) :: vx_d, vy_d, vz_d
-      real(dp) :: v_rel_d, E_rel_d
-      real(dp) :: sig_cx_d
+      real(dp) :: v_rel_d, E_rel_cx, sig_cx_d
+      real(dp) :: rate_el_dummy, collision_score_dummy
       type(rng_state) :: rng_work
 
       if (pending_eff_time <= 0.0d0) return
 
       E_kin = 0.5d0 * M_D_kg * (p%vx**2 + p%vy**2 + p%vz**2)
 
-      if (enable_ei) then
-         s_c_ei = plasma%n_e * ionization_rate_coeff(plasma%T_e) * E_kin
+      if (enable_ionization) then
+         s_c_ei = plasma%electron_density * &
+            ionization_rate_coeff(plasma%electron_temperature_eV) * E_kin
       else
          s_c_ei = 0.0d0
       end if
 
       s_c_cx = 0.0d0
-      s_c_el = 0.0d0
-      if (.not. enable_cx .and. .not. enable_el) then
-         score%tl_ei = score%tl_ei + s_c_ei * pending_eff_time
-         return
-      end if
-
-      rng_work = p%rng
-      call sample_maxwell_velocity_ion(rng_work, plasma%T_i, plasma, vx_d, vy_d, vz_d)
-
-      v_rel_d = sqrt((p%vx - vx_d)**2 + (p%vy - vy_d)**2 + (p%vz - vz_d)**2)
-      E_rel_d = 0.25d0 * M_D_kg * v_rel_d * v_rel_d * J_TO_EV
-
       if (enable_cx) then
-         sig_cx_d = sigma_cx(E_rel_d)
-         R_cx_d = plasma%n_i * sig_cx_d * v_rel_d
-         s_c_cx = R_cx_d * (E_kin - 0.5d0 * M_D_kg * (vx_d**2 + vy_d**2 + vz_d**2))
+         rng_work = p%rng
+         call sample_maxwell_velocity_ion(rng_work, plasma%ion_temperature_eV, &
+            plasma, vx_d, vy_d, vz_d)
+         v_rel_d = sqrt((p%vx - vx_d)**2 + (p%vy - vy_d)**2 + (p%vz - vz_d)**2)
+         E_rel_cx = 0.25d0 * M_D_kg * v_rel_d * v_rel_d * J_TO_EV
+         sig_cx_d = sigma_cx(E_rel_cx)
+         s_c_cx = plasma%ion_density * sig_cx_d * v_rel_d * &
+            (E_kin - 0.5d0 * M_D_kg * (vx_d**2 + vy_d**2 + vz_d**2))
       end if
 
+      s_c_el = 0.0d0
       if (enable_el) then
-         s_c_el = tl_el_rate_from_ion_sample(p, plasma, use_isotropic, rng_work, &
-            vx_d, vy_d, vz_d)
+         ! Lookup TR is angle-averaged already, so it does not depend on
+         ! the runtime elastic angle sampling model.
+         call compute_el_lookup_rate_and_score(p, plasma, s_c_el, rate_el_dummy, &
+            collision_score_dummy)
       end if
 
-      score%tl_ei = score%tl_ei + s_c_ei * pending_eff_time
-      score%tl_cx = score%tl_cx + s_c_cx * pending_eff_time
-      score%tl_el = score%tl_el + s_c_el * pending_eff_time
-
+      score%tr_ei = score%tr_ei + s_c_ei * pending_eff_time
+      score%tr_cx = score%tr_cx + s_c_cx * pending_eff_time
+      score%tr_el = score%tr_el + s_c_el * pending_eff_time
    end subroutine score_track_length_estimator
 
    !---------------------------------------------------------------------------
+   ! Backward-compatible wrapper
+   !---------------------------------------------------------------------------
+   subroutine score_table_lookup_track_length(p, plasma, pending_eff_time, &
+      enable_cx, enable_el, enable_ionization, score)
+      type(particle_t), intent(in)    :: p
+      type(plasma_params), intent(in) :: plasma
+      real(dp), intent(in)            :: pending_eff_time
+      logical, intent(in)             :: enable_cx, enable_el, enable_ionization
+      type(score_data), intent(inout) :: score
+
+      call score_track_length_estimator(p, plasma, pending_eff_time, &
+         enable_cx, enable_el, enable_ionization, score)
+   end subroutine score_table_lookup_track_length
+
+   !---------------------------------------------------------------------------
    ! EL 1サンプル分の rate を、既にサンプリング済みの背景イオン速度から評価する
+   ! optional: reaction_rate_el = R_el, collision_score_el = -ΔE_actual
    !---------------------------------------------------------------------------
    function tl_el_rate_from_ion_sample(p, plasma, use_isotropic, rng_work, &
-      vx_d, vy_d, vz_d) result(s_c_el)
+      vx_d, vy_d, vz_d, reaction_rate_el, collision_score_el) result(s_c_el)
       type(particle_t), intent(in)    :: p
       type(plasma_params), intent(in) :: plasma
       logical, intent(in)             :: use_isotropic
       type(rng_state), intent(inout)  :: rng_work
       real(dp), intent(in)            :: vx_d, vy_d, vz_d
+      real(dp), intent(out), optional :: reaction_rate_el, collision_score_el
       real(dp) :: s_c_el
 
       real(dp) :: v_rel_d, E_rel_d
@@ -160,7 +229,7 @@ contains
       v_rel_d = sqrt((p%vx - vx_d)**2 + (p%vy - vy_d)**2 + (p%vz - vz_d)**2)
       E_rel_d = 0.25d0 * M_D_kg * v_rel_d * v_rel_d * J_TO_EV
       sig_el_d = sigma_el(E_rel_d)
-      R_el_d = plasma%n_i * sig_el_d * v_rel_d
+      R_el_d = plasma%ion_density * sig_el_d * v_rel_d
 
       E_old = 0.5d0 * M_D_kg * (p%vx**2 + p%vy**2 + p%vz**2)
       vx_g = 0.5d0 * (p%vx + vx_d)
@@ -173,7 +242,7 @@ contains
       u_mag = sqrt(ux*ux + uy*uy + uz*uz)
 
       delta_E_el_dummy = 0.0d0
-      if (u_mag > 1.0d-30) then
+      if (u_mag > SCORE_TINY) then
          r_chi = random_double(rng_work)
          if (use_isotropic) then
             chi_d = acos(1.0d0 - 2.0d0 * r_chi)
@@ -193,11 +262,14 @@ contains
          delta_E_el_dummy = E_new - E_old
       end if
 
+      if (present(reaction_rate_el)) reaction_rate_el = R_el_d
+      if (present(collision_score_el)) collision_score_el = -delta_E_el_dummy
+
       s_c_el = R_el_d * (-delta_E_el_dummy)
    end function tl_el_rate_from_ion_sample
 
    !---------------------------------------------------------------------------
-   ! EL naive TL 1サンプル版
+   ! EL inner multi-sampling 1サンプル版
    !---------------------------------------------------------------------------
    function tl_el_sample_once(p, plasma, use_isotropic) result(s_c_el)
       type(particle_t), intent(in)    :: p
@@ -212,7 +284,7 @@ contains
    end function tl_el_sample_once
 
    !---------------------------------------------------------------------------
-   ! EL inner multi-sampling 平均版
+   ! EL inner multi-sampling 平均版（TR 用）
    !---------------------------------------------------------------------------
    function tl_el_sample_avg(p, plasma, use_isotropic, n_inner) result(s_c_el_avg)
       type(particle_t), intent(in)    :: p
@@ -265,6 +337,44 @@ contains
       stderr_rate = stddev_rate / sqrt(real(n_samples, dp))
    end subroutine tl_el_sample_stats
 
+   !---------------------------------------------------------------------------
+   ! EL inner multi-sampling 平均版（CL 用）
+   ! mean(R_el * score) / mean(R_el)
+   !---------------------------------------------------------------------------
+   function cl_el_sample_avg(p, plasma, use_isotropic, n_inner) result(s_el_avg)
+      type(particle_t), intent(in)    :: p
+      type(plasma_params), intent(in) :: plasma
+      logical, intent(in)             :: use_isotropic
+      integer, intent(in)             :: n_inner
+      real(dp) :: s_el_avg
+
+      integer :: m, n_samples
+      real(dp) :: vx_d, vy_d, vz_d
+      real(dp) :: sample_rate, sample_reaction_rate
+      real(dp) :: sum_rate, sum_reaction_rate, score_dummy
+      type(rng_state) :: rng_work
+
+      n_samples = max(1, n_inner)
+      rng_work = p%rng
+      sum_rate = 0.0d0
+      sum_reaction_rate = 0.0d0
+
+      do m = 1, n_samples
+         call sample_maxwell_velocity_ion(rng_work, plasma%ion_temperature_eV, &
+            plasma, vx_d, vy_d, vz_d)
+         sample_rate = tl_el_rate_from_ion_sample(p, plasma, use_isotropic, rng_work, &
+            vx_d, vy_d, vz_d, sample_reaction_rate, score_dummy)
+         sum_rate = sum_rate + sample_rate
+         sum_reaction_rate = sum_reaction_rate + sample_reaction_rate
+      end do
+
+      if (sum_reaction_rate > SCORE_TINY) then
+         s_el_avg = sum_rate / sum_reaction_rate
+      else
+         s_el_avg = 0.0d0
+      end if
+   end function cl_el_sample_avg
+
    function tl_el_sample_once_with_rng(p, plasma, use_isotropic, rng_work) result(s_c_el)
       type(particle_t), intent(in)    :: p
       type(plasma_params), intent(in) :: plasma
@@ -274,12 +384,14 @@ contains
 
       real(dp) :: vx_d, vy_d, vz_d
 
-      call sample_maxwell_velocity_ion(rng_work, plasma%T_i, plasma, vx_d, vy_d, vz_d)
-      s_c_el = tl_el_rate_from_ion_sample(p, plasma, use_isotropic, rng_work, vx_d, vy_d, vz_d)
+      call sample_maxwell_velocity_ion(rng_work, plasma%ion_temperature_eV, &
+         plasma, vx_d, vy_d, vz_d)
+      s_c_el = tl_el_rate_from_ion_sample(p, plasma, use_isotropic, rng_work, &
+         vx_d, vy_d, vz_d)
    end function tl_el_sample_once_with_rng
 
    !---------------------------------------------------------------------------
-   ! ベクトル回転（TLスコアリング内部用）
+   ! ベクトル回転（EL scoring 内部用）
    !---------------------------------------------------------------------------
    subroutine rotate_vector_tl(ux, uy, uz, chi, phi, ux_n, uy_n, uz_n)
       real(dp), intent(in)  :: ux, uy, uz
@@ -291,7 +403,7 @@ contains
       real(dp) :: nx, ny, nz
 
       u_mag = sqrt(ux*ux + uy*uy + uz*uz)
-      if (u_mag < 1.0d-30) then
+      if (u_mag < SCORE_TINY) then
          ux_n = ux
          uy_n = uy
          uz_n = uz
@@ -320,11 +432,10 @@ contains
          uy_n = u_mag * sin_chi * sin_phi
          uz_n = u_mag * cos_chi * sign(1.0d0, nz)
       end if
-
    end subroutine rotate_vector_tl
 
    !---------------------------------------------------------------------------
-   ! EL inner multi-sampling TL
+   ! EL inner multi-sampling TR
    !---------------------------------------------------------------------------
    subroutine score_inner_multi_track_length(p, plasma, pending_eff_time, &
       use_isotropic, enable_el, n_inner, score)
@@ -340,11 +451,11 @@ contains
       if (pending_eff_time <= 0.0d0 .or. .not. enable_el) return
 
       s_c_el = tl_el_sample_avg(p, plasma, use_isotropic, n_inner)
-      score%tl_inner_el = score%tl_inner_el + s_c_el * pending_eff_time
+      score%tr_inner_el = score%tr_inner_el + s_c_el * pending_eff_time
    end subroutine score_inner_multi_track_length
 
    !---------------------------------------------------------------------------
-   ! EL pre-tabulated TL
+   ! EL pre-tabulated TR
    !---------------------------------------------------------------------------
    subroutine score_pretabulated_track_length(p, plasma, pending_eff_time, &
       enable_el, score)
@@ -358,12 +469,12 @@ contains
 
       if (pending_eff_time <= 0.0d0 .or. .not. enable_el) return
 
-      call compute_tl_el_lookup_coords(p, plasma, etm, tim)
+      call compute_el_lookup_coords(p, plasma, etm, tim)
       s_c_el = get_tl_el_rate_from_table(etm, tim)
-      score%tl_pretab_el = score%tl_pretab_el + s_c_el * pending_eff_time
+      score%tr_pretab_el = score%tr_pretab_el + s_c_el * pending_eff_time
    end subroutine score_pretabulated_track_length
 
-   pure subroutine compute_tl_el_lookup_coords(p, plasma, etm, tim)
+   pure subroutine compute_el_lookup_coords(p, plasma, etm, tim)
       type(particle_t), intent(in)    :: p
       type(plasma_params), intent(in) :: plasma
       real(dp), intent(out)           :: etm, tim
@@ -371,98 +482,74 @@ contains
       real(dp) :: utx, uty, utz, ut2
       real(dp) :: m_ref, m_i
 
-      utx = p%vx - plasma%u_x
-      uty = p%vy - plasma%u_y
-      utz = p%vz - plasma%u_z
+      utx = p%vx - plasma%ion_flow_vx
+      uty = p%vy - plasma%ion_flow_vy
+      utz = p%vz - plasma%ion_flow_vz
       ut2 = utx**2 + uty**2 + utz**2
 
       m_ref = 0.5d0 * M_D_kg
       m_i = M_D_kg
 
-      etm = 0.5d0 * m_ref * ut2 * J_TO_EV
-      tim = (m_ref / m_i) * plasma%T_i
-   end subroutine compute_tl_el_lookup_coords
+      ! CDF lookup grids use specific_energy [eV/amu], so convert the
+      ! center-of-mass relative energy E_rel [eV] to E_rel / 2 [eV/amu] for D.
+      etm = 0.25d0 * m_ref * ut2 * J_TO_EV
+      tim = (m_ref / m_i) * plasma%ion_temperature_eV
+   end subroutine compute_el_lookup_coords
 
    !---------------------------------------------------------------------------
-   ! Table-Lookup Track-Length Estimator (TL Lookup)
-   ! 実衝突までに蓄積した pending_eff_time をまとめてスコアする
+   ! EL lookup kernel
+   ! el_rate          : unit-time expected source [J/s]
+   ! el_reaction_rate : EL collision frequency [1/s]
+   ! el_collision_score : expected source per EL collision [J]
    !---------------------------------------------------------------------------
-   subroutine score_table_lookup_track_length(p, plasma, pending_eff_time, &
-      enable_cx, enable_el, enable_ei, score)
+   subroutine compute_el_lookup_rate_and_score(p, plasma, el_rate, el_reaction_rate, &
+      el_collision_score)
       type(particle_t), intent(in)    :: p
       type(plasma_params), intent(in) :: plasma
-      real(dp), intent(in)            :: pending_eff_time
-      logical, intent(in)             :: enable_cx, enable_el, enable_ei
-      type(score_data), intent(inout) :: score
+      real(dp), intent(out)           :: el_rate
+      real(dp), intent(out)           :: el_reaction_rate
+      real(dp), intent(out)           :: el_collision_score
 
-      real(dp) :: E_kin
-      real(dp) :: s_c_ei, s_c_cx, s_c_el
       real(dp) :: utx, uty, utz, ut2, ut, zuv, va2
       real(dp) :: etm, tim, tim2
       real(dp) :: val_I_1_0, val_I_1_1, val_I_1_2
       real(dp) :: sp0, dtr_eng
-      real(dp) :: vx_d, vy_d, vz_d, v_rel_d, E_rel_cx, sig_cx_d
       real(dp) :: m_ref, m_t, m_i, ame
-      type(rng_state) :: rng_work
 
-      if (pending_eff_time <= 0.0d0) return
+      utx = p%vx - plasma%ion_flow_vx
+      uty = p%vy - plasma%ion_flow_vy
+      utz = p%vz - plasma%ion_flow_vz
+      ut2 = utx**2 + uty**2 + utz**2
+      ut = sqrt(ut2)
+      zuv = utx * p%vx + uty * p%vy + utz * p%vz
 
-      E_kin = 0.5d0 * M_D_kg * (p%vx**2 + p%vy**2 + p%vz**2)
+      m_t = M_D_kg
+      m_i = M_D_kg
+      m_ref = 0.5d0 * M_D_kg
+      ame = 2.0d0 * m_t * m_i / (m_t + m_i)**2
+      va2 = 2.0d0 * plasma%ion_temperature_eV * EV_TO_J / m_i
 
-      if (enable_ei) then
-         s_c_ei = plasma%n_e * ionization_rate_coeff(plasma%T_e) * E_kin
+      call compute_el_lookup_coords(p, plasma, etm, tim)
+      tim2 = max(tim, TLMT_EL)
+
+      val_I_1_0 = get_I_1_0(etm, tim2)
+      val_I_1_1 = get_I_1_1_up(etm, tim2)
+      val_I_1_2 = get_I_1_2_up2(etm, tim)
+      el_reaction_rate = plasma%ion_density * get_reaction_rate(etm, tim)
+
+      if (ut > 1.0d-10 .and. ut2 > 1.0d-20) then
+         sp0 = val_I_1_1 / ut - 0.5d0 * va2 / ut2 * val_I_1_0
+         dtr_eng = -ame * (0.5d0 * (m_t + m_i) * sp0 * zuv - 0.5d0 * m_i * val_I_1_2)
       else
-         s_c_ei = 0.0d0
+         dtr_eng = 0.0d0
       end if
 
-      s_c_cx = 0.0d0
-      if (enable_cx) then
-         rng_work = p%rng
-         call sample_maxwell_velocity_ion(rng_work, plasma%T_i, plasma, vx_d, vy_d, vz_d)
-         v_rel_d = sqrt((p%vx - vx_d)**2 + (p%vy - vy_d)**2 + (p%vz - vz_d)**2)
-         E_rel_cx = 0.25d0 * M_D_kg * v_rel_d * v_rel_d * J_TO_EV
-         sig_cx_d = sigma_cx(E_rel_cx)
-         s_c_cx = plasma%n_i * sig_cx_d * v_rel_d * &
-            (E_kin - 0.5d0 * M_D_kg * (vx_d**2 + vy_d**2 + vz_d**2))
+      el_rate = plasma%ion_density * (-dtr_eng)
+      if (el_reaction_rate > SCORE_TINY) then
+         el_collision_score = el_rate / el_reaction_rate
+      else
+         el_collision_score = 0.0d0
       end if
-
-      s_c_el = 0.0d0
-      if (enable_el) then
-         utx = p%vx - plasma%u_x
-         uty = p%vy - plasma%u_y
-         utz = p%vz - plasma%u_z
-         ut2 = utx**2 + uty**2 + utz**2
-         ut = sqrt(ut2)
-         zuv = utx*p%vx + uty*p%vy + utz*p%vz
-
-         m_t = M_D_kg
-         m_i = M_D_kg
-         m_ref = 0.5d0 * M_D_kg
-         ame = 2.0d0 * m_t * m_i / (m_t + m_i)**2
-         va2 = 2.0d0 * plasma%T_i * EV_TO_J / m_i
-
-         etm = 0.5d0 * m_ref * ut2 * J_TO_EV
-         tim = (m_ref / m_i) * plasma%T_i
-         tim2 = max(tim, TLMT_EL)
-
-         val_I_1_0 = get_I_1_0(etm, tim2)
-         val_I_1_1 = get_I_1_1_up(etm, tim2)
-         val_I_1_2 = get_I_1_2_up2(etm, tim)
-
-         if (ut > 1.0d-10 .and. ut2 > 1.0d-20) then
-            sp0 = val_I_1_1 / ut - 0.5d0 * va2 / ut2 * val_I_1_0
-            dtr_eng = -ame * (0.5d0 * (m_t + m_i) * sp0 * zuv - 0.5d0 * m_i * val_I_1_2)
-         else
-            dtr_eng = 0.0d0
-         end if
-
-         s_c_el = plasma%n_i * (-dtr_eng)
-      end if
-
-      score%tl_lookup_ei = score%tl_lookup_ei + s_c_ei * pending_eff_time
-      score%tl_lookup_cx = score%tl_lookup_cx + s_c_cx * pending_eff_time
-      score%tl_lookup_el = score%tl_lookup_el + s_c_el * pending_eff_time
-
-   end subroutine score_table_lookup_track_length
+   end subroutine compute_el_lookup_rate_and_score
 
 end module scoring

@@ -39,7 +39,7 @@ contains
 
       ! [0, 1) への変換: 上位53bitを使用
       ! 2^-53 = 1.1102230246251565d-16
-      r = dble(iand(result_val, int(Z'001FFFFFFFFFFFFF', 8))) * (1.0d0 / 9007199254740992.0d0)
+      r = dble(shiftr(result_val, 11)) * (1.0d0 / 9007199254740992.0d0)
 
       ! 状態遷移
       t = ishft(rng%s(2), 17)
@@ -137,9 +137,12 @@ contains
       r5 = random_double(rng)
       r6 = random_double(rng)
 
-      vx = plasma%u_x + v_th * sqrt(-2.0d0 * log(max(r1, 1.0d-30))) * cos(2.0d0 * PI * r2)
-      vy = plasma%u_y + v_th * sqrt(-2.0d0 * log(max(r3, 1.0d-30))) * cos(2.0d0 * PI * r4)
-      vz = plasma%u_z + v_th * sqrt(-2.0d0 * log(max(r5, 1.0d-30))) * cos(2.0d0 * PI * r6)
+      vx = plasma%ion_flow_vx + v_th * sqrt(-2.0d0 * log(max(r1, 1.0d-30))) * &
+         cos(2.0d0 * PI * r2)
+      vy = plasma%ion_flow_vy + v_th * sqrt(-2.0d0 * log(max(r3, 1.0d-30))) * &
+         cos(2.0d0 * PI * r4)
+      vz = plasma%ion_flow_vz + v_th * sqrt(-2.0d0 * log(max(r5, 1.0d-30))) * &
+         cos(2.0d0 * PI * r6)
    end subroutine sample_maxwell_velocity_ion
 
    !---------------------------------------------------------------------------

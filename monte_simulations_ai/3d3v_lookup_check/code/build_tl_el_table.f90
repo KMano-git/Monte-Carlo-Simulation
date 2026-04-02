@@ -37,7 +37,7 @@ program build_tl_el_table
    call read_input_file(sim, plasma, init_p, diag)
 
    n_table_samples = 2000
-   output_file = trim(sim%tl_el_table_file)
+   output_file = trim(sim%elastic_tl_table_file)
    stats_output_file = 'tl_el_table_stats.csv'
    rel_stderr_thresholds = (/0.01d0, 0.05d0, 0.10d0/)
 
@@ -64,10 +64,10 @@ program build_tl_el_table
    p%z = 0.0d0
    p%weight = 1.0d0
    p%alive = .true.
-   p%zincx = 0.0d0
-      p%zint1 = 0.0d0
-      p%tl_pending_time = 0.0d0
-      p%tl_pending_eff_time = 0.0d0
+   p%collision_clock_target = 0.0d0
+      p%collision_clock_elapsed = 0.0d0
+      p%pending_track_time = 0.0d0
+      p%pending_effective_track_time = 0.0d0
 
       write(*,'(A,I8,A)') ' Building TL EL table with ', n_table_samples, ' samples/grid...'
 
@@ -86,12 +86,13 @@ program build_tl_el_table
    n_total_cells = size(energy_grid) * size(temp_grid)
 
       do j = 1, size(temp_grid)
-         plasma%T_i = 2.0d0 * temp_grid(j)
+         plasma%ion_temperature_eV = 2.0d0 * temp_grid(j)
          do i = 1, size(energy_grid)
-            ut = sqrt(4.0d0 * energy_grid(i) * EV_TO_J / M_D_kg)
-         p%vx = plasma%u_x + ut
-         p%vy = plasma%u_y
-         p%vz = plasma%u_z
+            ! energy_grid is specific_energy [eV/amu] from the CDF metadata.
+            ut = sqrt(8.0d0 * energy_grid(i) * EV_TO_J / M_D_kg)
+         p%vx = plasma%ion_flow_vx + ut
+         p%vy = plasma%ion_flow_vy
+         p%vz = plasma%ion_flow_vz
 
             seed_base = int(sim%seed, 8) + 104729_8 * int(j - 1, 8) + int(i, 8)
             call init_rng(p%rng, seed_base)

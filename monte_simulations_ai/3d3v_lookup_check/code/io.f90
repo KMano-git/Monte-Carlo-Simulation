@@ -106,16 +106,26 @@ contains
          write(*,*) 'Warning: input.nml not found, using defaults'
       else
          open(unit=unit_input, file='input.nml', status='old', iostat=ios)
-         if (ios == 0) then
-            read(unit_input, nml=simulation, iostat=ios)
-            rewind(unit_input)
-            read(unit_input, nml=plasma_nml, iostat=ios)
-            rewind(unit_input)
-            read(unit_input, nml=particle_init, iostat=ios)
-            rewind(unit_input)
-            read(unit_input, nml=diagnostics, iostat=ios)
-            close(unit_input)
+         if (ios /= 0) then
+            write(*,'(A,I0)') 'Error: Failed to open input.nml, iostat=', ios
+            stop 1
          end if
+
+         read(unit_input, nml=simulation, iostat=ios)
+         if (ios /= 0) call abort_namelist_read('simulation', ios)
+         rewind(unit_input)
+
+         read(unit_input, nml=plasma_nml, iostat=ios)
+         if (ios /= 0) call abort_namelist_read('plasma_nml', ios)
+         rewind(unit_input)
+
+         read(unit_input, nml=particle_init, iostat=ios)
+         if (ios /= 0) call abort_namelist_read('particle_init', ios)
+         rewind(unit_input)
+
+         read(unit_input, nml=diagnostics, iostat=ios)
+         if (ios /= 0) call abort_namelist_read('diagnostics', ios)
+         close(unit_input)
       end if
 
       !構造体に格納
@@ -123,40 +133,40 @@ contains
       sim%n_steps       = n_steps
       sim%dt            = dt
       sim%seed          = seed
-      sim%tl_el_inner_samples = tl_el_inner_samples
+      sim%elastic_inner_samples = tl_el_inner_samples
       sim%enable_cx     = enable_cx
       sim%enable_el     = enable_el
-      sim%enable_ei     = enable_ei
+      sim%enable_ionization = enable_ei
       sim%use_isotropic = use_isotropic
       sim%weight_min    = weight_min
       sim%cdf_file      = cdf_file
-      sim%tl_el_table_file = tl_el_table_file
+      sim%elastic_tl_table_file = tl_el_table_file
       sim%output_ntscrg = output_ntscrg
       sim%output_hist   = output_hist
-      sim%output_deltaE_hist = output_deltaE_hist
+      sim%output_delta_energy_hist = output_deltaE_hist
 
-      plasma%n_i = n_i
-      plasma%T_i = T_i
-      plasma%n_e = n_e
-      plasma%T_e = T_e
-      plasma%u_x = u_x
-      plasma%u_y = u_y
-      plasma%u_z = u_z
+      plasma%ion_density = n_i
+      plasma%ion_temperature_eV = T_i
+      plasma%electron_density = n_e
+      plasma%electron_temperature_eV = T_e
+      plasma%ion_flow_vx = u_x
+      plasma%ion_flow_vy = u_y
+      plasma%ion_flow_vz = u_z
 
-      init_p%n_init    = n_init
-      init_p%E_init    = E_init
-      init_p%T_init    = T_init
-      init_p%init_mode = init_mode
+      init_p%initial_density = n_init
+      init_p%initial_energy_eV = E_init
+      init_p%initial_temperature_eV = T_init
+      init_p%initial_velocity_mode = init_mode
 
       diag%output_interval = output_interval
-      diag%n_hist_bins     = n_hist_bins
-      diag%E_hist_min      = E_hist_min
-      diag%E_hist_max      = E_hist_max
+      diag%energy_hist_bin_count = n_hist_bins
+      diag%energy_hist_min_eV    = E_hist_min
+      diag%energy_hist_max_eV    = E_hist_max
       diag%hist_timing     = hist_timing
-      diag%n_dE_bins       = n_dE_bins
-      diag%dE_hist_min     = dE_hist_min
-      diag%dE_hist_max     = dE_hist_max
-      diag%dE_collect_steps = dE_collect_steps
+      diag%delta_energy_hist_bin_count = n_dE_bins
+      diag%delta_energy_hist_min_eV    = dE_hist_min
+      diag%delta_energy_hist_max_eV    = dE_hist_max
+      diag%delta_energy_collect_steps  = dE_collect_steps
 
       !パラメータ表示
       write(*,'(A)') '=========================================='
@@ -183,6 +193,15 @@ contains
 
    end subroutine read_input_file
 
+   subroutine abort_namelist_read(section_name, ios)
+      character(len=*), intent(in) :: section_name
+      integer, intent(in) :: ios
+
+      write(*,'(A,A,A,I0)') 'Error: Failed to read namelist /', trim(section_name), &
+         '/ from input.nml, iostat=', ios
+      stop 1
+   end subroutine abort_namelist_read
+
    !---------------------------------------------------------------------------
    ! 粒子の初期化（位置=原点、重み=1.0）
    !---------------------------------------------------------------------------
@@ -205,16 +224,16 @@ contains
          particles(i)%z = 0.0d0
          particles(i)%weight = 1.0d0
          particles(i)%alive = .true.
-         particles(i)%zint1 = 0.0d0
-         particles(i)%tl_pending_time = 0.0d0
-         particles(i)%tl_pending_eff_time = 0.0d0
-         particles(i)%zincx = -log(max(random_double(particles(i)%rng), 1.0d-30))
+         particles(i)%collision_clock_elapsed = 0.0d0
+         particles(i)%pending_track_time = 0.0d0
+         particles(i)%pending_effective_track_time = 0.0d0
+         particles(i)%collision_clock_target = -log(max(random_double(particles(i)%rng), 1.0d-30))
 
-         if (init_p%init_mode == 0) then
-            call set_beam_velocity(init_p%E_init, &
+         if (init_p%initial_velocity_mode == 0) then
+            call set_beam_velocity(init_p%initial_energy_eV, &
                particles(i)%vx, particles(i)%vy, particles(i)%vz)
          else
-            call sample_maxwell_velocity(particles(i)%rng, init_p%T_init, &
+            call sample_maxwell_velocity(particles(i)%rng, init_p%initial_temperature_eV, &
                particles(i)%vx, particles(i)%vy, particles(i)%vz)
          end if
       end do
@@ -347,10 +366,9 @@ contains
       unit_out = 50
       open(unit=unit_out, file=filename, status='replace')
       write(unit_out,'(A)') 'time[s],n_alive,weight_sum,' // &
-         'CL_Q_cx[W/m3],CL_Q_el[W/m3],CL_Q_ei[W/m3],CL_Q_total[W/m3],' // &
-         'TL_Q_cx[W/m3],TL_Q_el[W/m3],TL_Q_ei[W/m3],TL_Q_total[W/m3],' // &
-         'TLLu_Q_cx[W/m3],TLLu_Q_el[W/m3],TLLu_Q_ei[W/m3],TLLu_Q_total[W/m3],' // &
-         'TLInner_Q_el[W/m3],TLPretab_Q_el[W/m3]'
+         'A_Q_el[W/m3],' // &
+         'CL_Q_cx[W/m3],CL_Q_el[W/m3],CL_Q_ei[W/m3],CL_Q_total[W/m3],CLInner_Q_el[W/m3],' // &
+         'TR_Q_cx[W/m3],TR_Q_el[W/m3],TR_Q_ei[W/m3],TR_Q_total[W/m3],TRInner_Q_el[W/m3],TRPretab_Q_el[W/m3]'
       close(unit_out)
    end subroutine output_ntscrg_header
 
@@ -368,10 +386,11 @@ contains
 
       integer :: unit_out
       real(dp) :: norm, time
+      real(dp) :: a_el
       real(dp) :: cl_cx, cl_el, cl_ei, cl_total
-      real(dp) :: tl_cx, tl_el, tl_ei, tl_total
-      real(dp) :: tl_lookup_cx, tl_lookup_el, tl_lookup_ei, tl_lookup_total
-      real(dp) :: tl_inner_el, tl_pretab_el
+      real(dp) :: cl_inner_el
+      real(dp) :: tr_cx, tr_el, tr_ei, tr_total
+      real(dp) :: tr_inner_el, tr_pretab_el
 
       unit_out = 50
 
@@ -381,30 +400,26 @@ contains
       norm = n_init / (dble(n_particles) * dt)
       time = dble(istep) * dt
 
+      a_el = step_score%a_el * norm
       cl_cx = step_score%cl_cx * norm
       cl_el = step_score%cl_el * norm
       cl_ei = step_score%cl_ei * norm
       cl_total = cl_cx + cl_el + cl_ei
+      cl_inner_el = step_score%cl_inner_el * norm
 
-      tl_cx = step_score%tl_cx * norm
-      tl_el = step_score%tl_el * norm
-      tl_ei = step_score%tl_ei * norm
-      tl_total = tl_cx + tl_el + tl_ei
-
-      tl_lookup_cx = step_score%tl_lookup_cx * norm
-      tl_lookup_el = step_score%tl_lookup_el * norm
-      tl_lookup_ei = step_score%tl_lookup_ei * norm
-      tl_lookup_total = tl_lookup_cx + tl_lookup_el + tl_lookup_ei
-      tl_inner_el = step_score%tl_inner_el * norm
-      tl_pretab_el = step_score%tl_pretab_el * norm
+      tr_cx = step_score%tr_cx * norm
+      tr_el = step_score%tr_el * norm
+      tr_ei = step_score%tr_ei * norm
+      tr_total = tr_cx + tr_el + tr_ei
+      tr_inner_el = step_score%tr_inner_el * norm
+      tr_pretab_el = step_score%tr_pretab_el * norm
 
       open(unit=unit_out, file=filename, status='old', position='append')
-      write(unit_out,'(ES14.6,A,I8,A,ES14.6,14(A,ES14.6))') &
+      write(unit_out,'(ES14.6,A,I8,A,ES14.6,12(A,ES14.6))') &
          time, ',', n_alive, ',', weight_sum, &
-         ',', cl_cx, ',', cl_el, ',', cl_ei, ',', cl_total, &
-         ',', tl_cx, ',', tl_el, ',', tl_ei, ',', tl_total, &
-         ',', tl_lookup_cx, ',', tl_lookup_el, ',', tl_lookup_ei, ',', tl_lookup_total, &
-         ',', tl_inner_el, ',', tl_pretab_el
+         ',', a_el, &
+         ',', cl_cx, ',', cl_el, ',', cl_ei, ',', cl_total, ',', cl_inner_el, &
+         ',', tr_cx, ',', tr_el, ',', tr_ei, ',', tr_total, ',', tr_inner_el, ',', tr_pretab_el
       close(unit_out)
 
    end subroutine output_ntscrg_step
@@ -418,28 +433,27 @@ contains
       real(dp), intent(in) :: n_init, dt
 
       real(dp) :: norm
-      real(dp) :: cl_total, tl_total, tl_lookup_total
+      real(dp) :: cl_total, tr_total
 
       ! 全ステップ累積スコア → 平均 W/m3
       norm = n_init / (dble(n_particles) * dt * dble(n_steps))
 
       cl_total = (score%cl_ei + score%cl_cx + score%cl_el) * norm
-      tl_total = (score%tl_ei + score%tl_cx + score%tl_el) * norm
-      tl_lookup_total = (score%tl_lookup_ei + score%tl_lookup_cx + score%tl_lookup_el) * norm
+      tr_total = (score%tr_ei + score%tr_cx + score%tr_el) * norm
 
       write(*,'(A)') ''
       write(*,'(A)') '=========================================='
       write(*,'(A)') ' Scoring Results (time-averaged) [W/m3]'
       write(*,'(A)') '=========================================='
       write(*,'(A)')         '          EI              CX              EL              Total'
+      write(*,'(A,ES16.6)') ' A(EL): ', score%a_el*norm
       write(*,'(A,4ES16.6)') ' CL: ', &
          score%cl_ei*norm, score%cl_cx*norm, score%cl_el*norm, cl_total
-      write(*,'(A,4ES16.6)') ' TL: ', &
-         score%tl_ei*norm, score%tl_cx*norm, score%tl_el*norm, tl_total
-      write(*,'(A,4ES16.6)') ' TLLookup: ', &
-         score%tl_lookup_ei*norm, score%tl_lookup_cx*norm, score%tl_lookup_el*norm, tl_lookup_total
-      write(*,'(A,ES16.6)') ' TLInner(EL): ', score%tl_inner_el*norm
-      write(*,'(A,ES16.6)') ' TLPretab(EL): ', score%tl_pretab_el*norm
+      write(*,'(A,ES16.6)') ' CLInner(EL): ', score%cl_inner_el*norm
+      write(*,'(A,4ES16.6)') ' TR: ', &
+         score%tr_ei*norm, score%tr_cx*norm, score%tr_el*norm, tr_total
+      write(*,'(A,ES16.6)') ' TRInner(EL): ', score%tr_inner_el*norm
+      write(*,'(A,ES16.6)') ' TRPretab(EL): ', score%tr_pretab_el*norm
       write(*,'(A)') '=========================================='
 
    end subroutine output_ntscrg_final

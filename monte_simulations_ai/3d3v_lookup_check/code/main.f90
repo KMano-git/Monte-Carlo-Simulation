@@ -26,9 +26,9 @@ program monte_carlo_3d3v_natl
    use dynamics, only: advance_particle, evaluate_collision_event, &
       collision_cx, collision_el, update_weight, &
       COLL_NONE, COLL_CX, COLL_EL
-   use scoring, only: score_collision_estimator, score_track_length_estimator, &
-      score_inner_multi_track_length, score_pretabulated_track_length, &
-      score_table_lookup_track_length
+   use scoring, only: score_analog_elastic, score_collision_estimator, &
+      score_inner_multi_collision_el, score_track_length_estimator, &
+      score_inner_multi_track_length, score_pretabulated_track_length
    use io
    implicit none
 
@@ -54,10 +54,10 @@ program monte_carlo_3d3v_natl
    real(dp) :: weight_sum
 
    !OpenMP reduction用のスカラー変数
-   real(dp) :: s_cl_cx, s_cl_el, s_cl_ei
-   real(dp) :: s_tl_cx, s_tl_el, s_tl_ei
-   real(dp) :: s_tl_lookup_cx, s_tl_lookup_el, s_tl_lookup_ei
-   real(dp) :: s_tl_inner_el, s_tl_pretab_el
+   real(dp) :: s_a_el
+   real(dp) :: s_cl_cx, s_cl_el, s_cl_ei, s_cl_inner_el
+   real(dp) :: s_tr_cx, s_tr_el, s_tr_ei
+   real(dp) :: s_tr_inner_el, s_tr_pretab_el
 
    !スレッドプライベート変数（並列ループ内で使用）
    integer :: coll_type_l
@@ -92,18 +92,18 @@ program monte_carlo_3d3v_natl
       stop 1
    end if
 
-   call load_tl_el_table(sim%tl_el_table_file, table_ierr)
+   call load_tl_el_table(sim%elastic_tl_table_file, table_ierr)
    if (table_ierr == 0) then
-      write(*,'(A,A)') ' TL EL pretab table loaded: ', trim(sim%tl_el_table_file)
+      write(*,'(A,A)') ' TL EL pretab table loaded: ', trim(sim%elastic_tl_table_file)
    else
-      write(*,'(A,A)') ' TL EL pretab table not loaded: ', trim(sim%tl_el_table_file)
+      write(*,'(A,A)') ' TL EL pretab table not loaded: ', trim(sim%elastic_tl_table_file)
    end if
 
    !ν_max 事前計算（σ_s * v_rel の最大値をスキャン）
-   call compute_nu_max(plasma%n_i)
+   call compute_nu_max(plasma%ion_density)
 
-   if (sim%enable_ei) then
-      ion_loss_rate = plasma%n_e * ionization_rate_coeff(plasma%T_e)
+   if (sim%enable_ionization) then
+      ion_loss_rate = plasma%electron_density * ionization_rate_coeff(plasma%electron_temperature_eV)
    else
       ion_loss_rate = 0.0d0
    end if
@@ -113,28 +113,32 @@ program monte_carlo_3d3v_natl
    call initialize_particles(particles, sim%n_particles, init_p, sim%seed)
 
    !スコアデータ初期化
+   score%a_el = 0.0d0
    score%cl_ei = 0.0d0; score%cl_cx = 0.0d0; score%cl_el = 0.0d0
-   score%tl_ei = 0.0d0; score%tl_cx = 0.0d0; score%tl_el = 0.0d0
-   score%tl_lookup_ei = 0.0d0; score%tl_lookup_cx = 0.0d0; score%tl_lookup_el = 0.0d0
-   score%tl_inner_el = 0.0d0; score%tl_pretab_el = 0.0d0
+   score%cl_inner_el = 0.0d0
+   score%tr_ei = 0.0d0; score%tr_cx = 0.0d0; score%tr_el = 0.0d0
+   score%tr_inner_el = 0.0d0; score%tr_pretab_el = 0.0d0
 
    !ntscrg.csvヘッダー出力
    call output_ntscrg_header(sim%output_ntscrg)
 
    !ヒストグラム配列の宣言と初期化
-   allocate(dE_hist_el(diag%n_dE_bins), dE_hist_cx(diag%n_dE_bins))
+   allocate(dE_hist_el(diag%delta_energy_hist_bin_count), &
+      dE_hist_cx(diag%delta_energy_hist_bin_count))
    dE_hist_el = 0.0d0
    dE_hist_cx = 0.0d0
-   dE_bin_width = (diag%dE_hist_max - diag%dE_hist_min) / dble(diag%n_dE_bins)
+   dE_bin_width = (diag%delta_energy_hist_max_eV - diag%delta_energy_hist_min_eV) / &
+      dble(diag%delta_energy_hist_bin_count)
 
    !初期ヒ���トグラム出力
    first_hist = .true.
 
    !deltaEヒストグラム集計開始ステップの決定
-   if (diag%dE_collect_steps <= 0 .or. diag%dE_collect_steps >= sim%n_steps) then
+   if (diag%delta_energy_collect_steps <= 0 .or. &
+      diag%delta_energy_collect_steps >= sim%n_steps) then
       dE_start_step = 1  !全ステップで集計
    else
-      dE_start_step = sim%n_steps - diag%dE_collect_steps + 1
+      dE_start_step = sim%n_steps - diag%delta_energy_collect_steps + 1
    end if
 
    !---------------------------------------------------------------------------
@@ -155,10 +159,11 @@ program monte_carlo_3d3v_natl
       weight_sum = 0.0d0
 
       !1ステップ分のスコアをリセット（reduction用���������カラー）
+      s_a_el = 0.0d0
       s_cl_ei = 0.0d0; s_cl_cx = 0.0d0; s_cl_el = 0.0d0
-      s_tl_ei = 0.0d0; s_tl_cx = 0.0d0; s_tl_el = 0.0d0
-      s_tl_lookup_ei = 0.0d0; s_tl_lookup_cx = 0.0d0; s_tl_lookup_el = 0.0d0
-      s_tl_inner_el = 0.0d0; s_tl_pretab_el = 0.0d0
+      s_cl_inner_el = 0.0d0
+      s_tr_ei = 0.0d0; s_tr_cx = 0.0d0; s_tr_el = 0.0d0
+      s_tr_inner_el = 0.0d0; s_tr_pretab_el = 0.0d0
 
       !$omp parallel do &
       !$omp   private(ip, coll_type_l, vx_i_l, vy_i_l, vz_i_l, &
@@ -167,37 +172,37 @@ program monte_carlo_3d3v_natl
       !$omp           is_collision_event, &
       !$omp           l_dE_hist_el, l_dE_hist_cx, ibin_l) &
       !$omp   reduction(+:n_alive, weight_sum, n_coll_cx, n_coll_el, &
-      !$omp              n_coll_total, s_cl_cx, s_cl_el, s_cl_ei, &
-      !$omp              s_tl_cx, s_tl_el, s_tl_ei, &
-      !$omp              s_tl_lookup_cx, s_tl_lookup_el, s_tl_lookup_ei, &
-      !$omp              s_tl_inner_el, s_tl_pretab_el) &
+      !$omp              n_coll_total, s_a_el, s_cl_cx, s_cl_el, s_cl_ei, &
+      !$omp              s_cl_inner_el, s_tr_cx, s_tr_el, s_tr_ei, &
+      !$omp              s_tr_inner_el, s_tr_pretab_el) &
       !$omp   schedule(static)
       do ip = 1, sim%n_particles
          if (.not. particles(ip)%alive) cycle
-         n_alive = n_alive + 1
-         weight_sum = weight_sum + particles(ip)%weight
 
          !スレッドローカルなスコア変数を使用（1パーティクル、1マクロステップ分）
+         my_score%a_el = 0.0d0
          my_score%cl_ei = 0.0d0; my_score%cl_cx = 0.0d0; my_score%cl_el = 0.0d0
-         my_score%tl_ei = 0.0d0; my_score%tl_cx = 0.0d0; my_score%tl_el = 0.0d0
-         my_score%tl_lookup_ei = 0.0d0; my_score%tl_lookup_cx = 0.0d0; my_score%tl_lookup_el = 0.0d0
-         my_score%tl_inner_el = 0.0d0; my_score%tl_pretab_el = 0.0d0
+         my_score%cl_inner_el = 0.0d0
+         my_score%tr_ei = 0.0d0; my_score%tr_cx = 0.0d0; my_score%tr_el = 0.0d0
+         my_score%tr_inner_el = 0.0d0; my_score%tr_pretab_el = 0.0d0
 
-         allocate(l_dE_hist_el(diag%n_dE_bins), l_dE_hist_cx(diag%n_dE_bins))
+         allocate(l_dE_hist_el(diag%delta_energy_hist_bin_count), &
+            l_dE_hist_cx(diag%delta_energy_hist_bin_count))
          l_dE_hist_el = 0.0d0
          l_dE_hist_cx = 0.0d0
 
          time_remaining = sim%dt
-         nu_max = plasma%n_i * sigma_v_max
+         nu_max = plasma%ion_density * sigma_v_max
 
-         ! 仮想衝突までの距離(zincx)と累積距離(zint1)は粒子構造体に保持されているためここでは初期化しない
+         ! 仮想衝突の目標値と累積値は粒子構造体に保持されているためここでは初期化しない
 
          !--- イベント駆動の内側ループ ---
          do while (time_remaining > 0.0d0 .and. particles(ip)%alive)
 
             ! 次の仮想衝突までの時間
             if (nu_max > 1.0d-30) then
-               t_col = max((particles(ip)%zincx - particles(ip)%zint1) / nu_max, 0.0d0)
+               t_col = max((particles(ip)%collision_clock_target - &
+                  particles(ip)%collision_clock_elapsed) / nu_max, 0.0d0)
             else
                t_col = time_remaining * 2.0d0 ! 衝突なし
             end if
@@ -211,19 +216,21 @@ program monte_carlo_3d3v_natl
             end if
 
             ! 累積距離の更新
-            particles(ip)%zint1 = particles(ip)%zint1 + step_dt * nu_max
+            particles(ip)%collision_clock_elapsed = particles(ip)%collision_clock_elapsed + &
+               step_dt * nu_max
 
             ! 実衝突までの飛跡長を蓄積し、受理衝突時にまとめて flush する
             if (step_dt > 0.0d0) then
                segment_eff_time = compute_effective_track_time( &
                   particles(ip)%weight, ion_loss_rate, step_dt)
-               particles(ip)%tl_pending_time = particles(ip)%tl_pending_time + step_dt
-               particles(ip)%tl_pending_eff_time = particles(ip)%tl_pending_eff_time + &
+               particles(ip)%pending_track_time = particles(ip)%pending_track_time + step_dt
+               particles(ip)%pending_effective_track_time = &
+                  particles(ip)%pending_effective_track_time + &
                   segment_eff_time
             end if
 
             !--- 重み更新 (step_dt に基づいて計算) ---
-            if (sim%enable_ei) then
+            if (sim%enable_ionization) then
                call update_weight(particles(ip), plasma, step_dt, sim%weight_min)
             end if
 
@@ -254,16 +261,21 @@ program monte_carlo_3d3v_natl
                      ! 速度・エネルギー更新前にスコアリング (衝突前の高いエネルギーを用いる)
                      call score_collision_estimator(particles(ip), plasma, &
                         vx_i_l, vy_i_l, vz_i_l, &
-                        v_rel_l, E_rel_l, coll_type_l, delta_E_l, &
-                        sim%enable_ei, my_score)
+                        v_rel_l, E_rel_l, &
+                        sim%enable_cx, sim%enable_el, &
+                        sim%enable_ionization, my_score)
+                     call score_inner_multi_collision_el(particles(ip), plasma, &
+                        E_rel_l, sim%enable_cx, sim%enable_el, &
+                        sim%use_isotropic, sim%elastic_inner_samples, my_score)
                      call collision_cx(particles(ip), vx_i_l, vy_i_l, vz_i_l, &
                         delta_E_l)
                      n_coll_cx = n_coll_cx + 1
 
                      ! エネルギー変化量[eV]をヒストグラムに記録
                      if (collect_dE) then
-                        ibin_l = int((delta_E_l * J_TO_EV - diag%dE_hist_min) / dE_bin_width) + 1
-                        if (ibin_l >= 1 .and. ibin_l <= diag%n_dE_bins) then
+                        ibin_l = int((delta_E_l * J_TO_EV - diag%delta_energy_hist_min_eV) / &
+                           dE_bin_width) + 1
+                        if (ibin_l >= 1 .and. ibin_l <= diag%delta_energy_hist_bin_count) then
                            l_dE_hist_cx(ibin_l) = l_dE_hist_cx(ibin_l) + particles(ip)%weight
                         end if
                      end if
@@ -276,16 +288,22 @@ program monte_carlo_3d3v_natl
                      ! 元の粒子(更新前)を使ってスコアを記録
                      call score_collision_estimator(particles(ip), plasma, &
                         vx_i_l, vy_i_l, vz_i_l, &
-                        v_rel_l, E_rel_l, coll_type_l, delta_E_l, &
-                        sim%enable_ei, my_score)
+                        v_rel_l, E_rel_l, &
+                        sim%enable_cx, sim%enable_el, &
+                        sim%enable_ionization, my_score)
+                     call score_analog_elastic(particles(ip), delta_E_l, my_score)
+                     call score_inner_multi_collision_el(particles(ip), plasma, &
+                        E_rel_l, sim%enable_cx, sim%enable_el, &
+                        sim%use_isotropic, sim%elastic_inner_samples, my_score)
                      ! 更新後の状態(と進んだRNG状態)を書き戻し
                      particles(ip) = p_copy
                      n_coll_el = n_coll_el + 1
 
                      ! エネルギー変化量[eV]をヒストグラムに記録
                      if (collect_dE) then
-                        ibin_l = int((delta_E_l * J_TO_EV - diag%dE_hist_min) / dE_bin_width) + 1
-                        if (ibin_l >= 1 .and. ibin_l <= diag%n_dE_bins) then
+                        ibin_l = int((delta_E_l * J_TO_EV - diag%delta_energy_hist_min_eV) / &
+                           dE_bin_width) + 1
+                        if (ibin_l >= 1 .and. ibin_l <= diag%delta_energy_hist_bin_count) then
                            l_dE_hist_el(ibin_l) = l_dE_hist_el(ibin_l) + particles(ip)%weight
                         end if
                      end if
@@ -293,31 +311,35 @@ program monte_carlo_3d3v_natl
 
                   ! 実際の衝突が発生した場合、サンプリング距離を更新
                   r = random_double(particles(ip)%rng)
-                  particles(ip)%zincx = -log(max(r, 1.0d-30))
-                  particles(ip)%zint1 = 0.0d0
+                  particles(ip)%collision_clock_target = -log(max(r, 1.0d-30))
+                  particles(ip)%collision_clock_elapsed = 0.0d0
                else
                   ! 空衝突の場合: イベント距離を再サンプリングして継続
                   r = random_double(particles(ip)%rng)
-                  particles(ip)%zincx = -log(max(r, 1.0d-30))
-                  particles(ip)%zint1 = 0.0d0
+                  particles(ip)%collision_clock_target = -log(max(r, 1.0d-30))
+                  particles(ip)%collision_clock_elapsed = 0.0d0
                end if
             end if
 
          end do
          !--- イベント駆動の内側ループ終了 ---
 
+         if (particles(ip)%alive) then
+            n_alive = n_alive + 1
+            weight_sum = weight_sum + particles(ip)%weight
+         end if
+
          !--- スレッドローカルスコアをreduction変数に加算 ---
+         s_a_el = s_a_el + my_score%a_el
          s_cl_cx = s_cl_cx + my_score%cl_cx
          s_cl_el = s_cl_el + my_score%cl_el
          s_cl_ei = s_cl_ei + my_score%cl_ei
-         s_tl_cx = s_tl_cx + my_score%tl_cx
-         s_tl_el = s_tl_el + my_score%tl_el
-         s_tl_ei = s_tl_ei + my_score%tl_ei
-         s_tl_lookup_cx = s_tl_lookup_cx + my_score%tl_lookup_cx
-         s_tl_lookup_el = s_tl_lookup_el + my_score%tl_lookup_el
-         s_tl_lookup_ei = s_tl_lookup_ei + my_score%tl_lookup_ei
-         s_tl_inner_el = s_tl_inner_el + my_score%tl_inner_el
-         s_tl_pretab_el = s_tl_pretab_el + my_score%tl_pretab_el
+         s_cl_inner_el = s_cl_inner_el + my_score%cl_inner_el
+         s_tr_cx = s_tr_cx + my_score%tr_cx
+         s_tr_el = s_tr_el + my_score%tr_el
+         s_tr_ei = s_tr_ei + my_score%tr_ei
+         s_tr_inner_el = s_tr_inner_el + my_score%tr_inner_el
+         s_tr_pretab_el = s_tr_pretab_el + my_score%tr_pretab_el
 
          !$omp critical
          dE_hist_el(:) = dE_hist_el(:) + l_dE_hist_el(:)
@@ -332,57 +354,51 @@ program monte_carlo_3d3v_natl
       if (istep == sim%n_steps) then
          !$omp parallel do &
          !$omp   private(ip, my_score) &
-         !$omp   reduction(+:s_tl_cx, s_tl_el, s_tl_ei, &
-         !$omp              s_tl_lookup_cx, s_tl_lookup_el, s_tl_lookup_ei, &
-         !$omp              s_tl_inner_el, s_tl_pretab_el) &
+         !$omp   reduction(+:s_tr_cx, s_tr_el, s_tr_ei, s_tr_inner_el, s_tr_pretab_el) &
          !$omp   schedule(static)
          do ip = 1, sim%n_particles
+            my_score%a_el = 0.0d0
             my_score%cl_ei = 0.0d0; my_score%cl_cx = 0.0d0; my_score%cl_el = 0.0d0
-            my_score%tl_ei = 0.0d0; my_score%tl_cx = 0.0d0; my_score%tl_el = 0.0d0
-            my_score%tl_lookup_ei = 0.0d0; my_score%tl_lookup_cx = 0.0d0
-            my_score%tl_lookup_el = 0.0d0
-            my_score%tl_inner_el = 0.0d0; my_score%tl_pretab_el = 0.0d0
+            my_score%cl_inner_el = 0.0d0
+            my_score%tr_ei = 0.0d0; my_score%tr_cx = 0.0d0; my_score%tr_el = 0.0d0
+            my_score%tr_inner_el = 0.0d0; my_score%tr_pretab_el = 0.0d0
 
             call flush_pending_track_scores(particles(ip), plasma, sim, my_score)
 
-            s_tl_cx = s_tl_cx + my_score%tl_cx
-            s_tl_el = s_tl_el + my_score%tl_el
-            s_tl_ei = s_tl_ei + my_score%tl_ei
-            s_tl_lookup_cx = s_tl_lookup_cx + my_score%tl_lookup_cx
-            s_tl_lookup_el = s_tl_lookup_el + my_score%tl_lookup_el
-            s_tl_lookup_ei = s_tl_lookup_ei + my_score%tl_lookup_ei
-            s_tl_inner_el = s_tl_inner_el + my_score%tl_inner_el
-            s_tl_pretab_el = s_tl_pretab_el + my_score%tl_pretab_el
+            s_tr_cx = s_tr_cx + my_score%tr_cx
+            s_tr_el = s_tr_el + my_score%tr_el
+            s_tr_ei = s_tr_ei + my_score%tr_ei
+            s_tr_inner_el = s_tr_inner_el + my_score%tr_inner_el
+            s_tr_pretab_el = s_tr_pretab_el + my_score%tr_pretab_el
          end do
          !$omp end parallel do
       end if
 
       !--- reduction結果をstep_scoreに格納 ---
+      step_score%a_el = s_a_el
       step_score%cl_cx = s_cl_cx; step_score%cl_el = s_cl_el
       step_score%cl_ei = s_cl_ei
-      step_score%tl_cx = s_tl_cx; step_score%tl_el = s_tl_el
-      step_score%tl_ei = s_tl_ei
-      step_score%tl_lookup_cx = s_tl_lookup_cx; step_score%tl_lookup_el = s_tl_lookup_el
-      step_score%tl_lookup_ei = s_tl_lookup_ei
-      step_score%tl_inner_el = s_tl_inner_el
-      step_score%tl_pretab_el = s_tl_pretab_el
+      step_score%cl_inner_el = s_cl_inner_el
+      step_score%tr_cx = s_tr_cx; step_score%tr_el = s_tr_el
+      step_score%tr_ei = s_tr_ei
+      step_score%tr_inner_el = s_tr_inner_el
+      step_score%tr_pretab_el = s_tr_pretab_el
 
       !--- ステップスコアを累積スコアに加算 ---
+      score%a_el = score%a_el + step_score%a_el
       score%cl_ei = score%cl_ei + step_score%cl_ei
       score%cl_cx = score%cl_cx + step_score%cl_cx
       score%cl_el = score%cl_el + step_score%cl_el
-      score%tl_ei = score%tl_ei + step_score%tl_ei
-      score%tl_cx = score%tl_cx + step_score%tl_cx
-      score%tl_el = score%tl_el + step_score%tl_el
-      score%tl_lookup_ei = score%tl_lookup_ei + step_score%tl_lookup_ei
-      score%tl_lookup_cx = score%tl_lookup_cx + step_score%tl_lookup_cx
-      score%tl_lookup_el = score%tl_lookup_el + step_score%tl_lookup_el
-      score%tl_inner_el = score%tl_inner_el + step_score%tl_inner_el
-      score%tl_pretab_el = score%tl_pretab_el + step_score%tl_pretab_el
+      score%cl_inner_el = score%cl_inner_el + step_score%cl_inner_el
+      score%tr_ei = score%tr_ei + step_score%tr_ei
+      score%tr_cx = score%tr_cx + step_score%tr_cx
+      score%tr_el = score%tr_el + step_score%tr_el
+      score%tr_inner_el = score%tr_inner_el + step_score%tr_inner_el
+      score%tr_pretab_el = score%tr_pretab_el + step_score%tr_pretab_el
 
       !--- ntscrg.csv出力（毎ステップ） ---
       call output_ntscrg_step(sim%output_ntscrg, step_score, &
-         sim%n_particles, init_p%n_init, sim%dt, &
+         sim%n_particles, init_p%initial_density, sim%dt, &
          istep, n_alive, weight_sum)
 
       !--- 進捗表示 ---
@@ -395,7 +411,7 @@ program monte_carlo_3d3v_natl
 
       !--- エネルギーヒストグラム出力 ---
       call output_energy_histogram(sim%output_hist, particles, sim%n_particles, &
-         diag%n_hist_bins, diag%E_hist_min, diag%E_hist_max, &
+         diag%energy_hist_bin_count, diag%energy_hist_min_eV, diag%energy_hist_max_eV, &
          istep, 6, diag%hist_timing, first_hist)
 
       if (first_hist) then
@@ -420,7 +436,7 @@ program monte_carlo_3d3v_natl
    write(*,'(A)') 'Simulation complete.'
 
    !スコアリングサマリー（コンソール）
-   call output_ntscrg_final(score, sim%n_particles, init_p%n_init, &
+   call output_ntscrg_final(score, sim%n_particles, init_p%initial_density, &
       sim%n_steps, sim%dt)
 
    !最終統計
@@ -429,9 +445,10 @@ program monte_carlo_3d3v_natl
    !--- 移行エネルギーヒストグラム出力（シミュレーション終了後に1回） ---
    dE_actual_steps = sim%n_steps - dE_start_step + 1
    dE_collect_time = dble(dE_actual_steps) * sim%dt
-   call output_deltaE_histogram(sim%output_deltaE_hist, dE_hist_el, dE_hist_cx, &
-      diag%n_dE_bins, diag%dE_hist_min, diag%dE_hist_max, &
-      init_p%n_init, sim%n_particles, dE_collect_time)
+   call output_deltaE_histogram(sim%output_delta_energy_hist, dE_hist_el, dE_hist_cx, &
+      diag%delta_energy_hist_bin_count, diag%delta_energy_hist_min_eV, &
+      diag%delta_energy_hist_max_eV, init_p%initial_density, sim%n_particles, &
+      dE_collect_time)
    !後片付け
    deallocate(particles)
    deallocate(dE_hist_el, dE_hist_cx)
@@ -455,23 +472,21 @@ contains
       type(sim_params), intent(in)    :: sim
       type(score_data), intent(inout) :: local_score
 
-      if (p%tl_pending_eff_time <= 0.0d0) then
-         p%tl_pending_time = 0.0d0
-         p%tl_pending_eff_time = 0.0d0
+      if (p%pending_effective_track_time <= 0.0d0) then
+         p%pending_track_time = 0.0d0
+         p%pending_effective_track_time = 0.0d0
          return
       end if
 
-      call score_track_length_estimator(p, plasma, p%tl_pending_eff_time, &
-         sim%use_isotropic, sim%enable_cx, sim%enable_el, sim%enable_ei, local_score)
-      call score_inner_multi_track_length(p, plasma, p%tl_pending_eff_time, &
-         sim%use_isotropic, sim%enable_el, sim%tl_el_inner_samples, local_score)
-      call score_pretabulated_track_length(p, plasma, p%tl_pending_eff_time, &
+      call score_track_length_estimator(p, plasma, p%pending_effective_track_time, &
+         sim%enable_cx, sim%enable_el, sim%enable_ionization, local_score)
+      call score_inner_multi_track_length(p, plasma, p%pending_effective_track_time, &
+         sim%use_isotropic, sim%enable_el, sim%elastic_inner_samples, local_score)
+      call score_pretabulated_track_length(p, plasma, p%pending_effective_track_time, &
          sim%enable_el, local_score)
-      call score_table_lookup_track_length(p, plasma, p%tl_pending_eff_time, &
-         sim%enable_cx, sim%enable_el, sim%enable_ei, local_score)
 
-      p%tl_pending_time = 0.0d0
-      p%tl_pending_eff_time = 0.0d0
+      p%pending_track_time = 0.0d0
+      p%pending_effective_track_time = 0.0d0
    end subroutine flush_pending_track_scores
 
 end program monte_carlo_3d3v_natl

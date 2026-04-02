@@ -1,157 +1,215 @@
 # 3D3V Lookup Check
 
-`scoring.f90` の elastic TL 項について、既存実装を壊さずに複数方式を比較できるようにした作業ディレクトリです。
+`project/monte_simulations_ai/3d3v_lookup_check/` は、3D3V の非アナログ Monte Carlo 輸送に対して、
+elastic source の score 方法を複数比較できるようにした作業ディレクトリです。
 
-現在このディレクトリでは、以下の EL 評価を同時に比較できます。
+現在の主眼は、elastic について
 
+- `A(EL)`
+  - analog estimator
+  - 実際に起きた EL 衝突の実現値 `-delta_E_el` を score
 - `CL`
-  - 実衝突時の collision estimator
-- `TL`
-  - 既存の naive track-length estimator
-  - TL 内で 1 回だけ仮想 elastic collision をサンプル
-- `TLInner(EL)`
-  - inner multi-sampling 版
-  - TL 内で複数回サンプリングして平均
-- `TLPretab(EL)`
-  - offline Monte Carlo で作成した table を runtime lookup
-- `TLLookup`
-  - 既存の `I_1_x` ベース lookup 実装
+  - pure scatter-collision based collision estimator
+  - アクセプトされた scatter collision ごとに、`CX/EL` の期待寄与を score
+- `TR`
+  - lookup-based track-length estimator
+  - `I_1_0`, `I_1_1*up`, `I_1_2*up^2` から作る平均 rate を
+    `pending_eff_time` に掛けて score
 
-## この改修でやったこと
+を mainline とし、elastic 比較用に
 
-### 1. task.md の内容を精査して方針を補正
+- `CLInner(EL)`
+  - inner multi-sampling による elastic CL 比較値
+- `TRInner(EL)`
+  - inner multi-sampling による elastic TR 比較値
+- `TRPretab(EL)`
+  - offline Monte Carlo table の runtime lookup による elastic TR 比較値
 
-`task.md` の主旨はそのまま採用しつつ、実装上は次の 2 点を補正しています。
+を同時に出力します。
 
-- `pre-tabulated TL` は既存の `I_1_x` ベース `TLLookup` とは別物として追加
-  - 既存 lookup はそのまま残し、比較対象として併存
-- offline table は `CL` の平均ではなく、
-  `naive TL` の EL 1 サンプル核
-  `n_i * sigma_el * v_rel * (-delta_E_el_dummy)`
-  の平均として実装
-  - これにより `TL naive` と `TL inner` の延長として解釈しやすくしています
+## Estimator の意味
 
-また、TL 側の重みの扱いは既存コードに合わせています。
+### 1. `A(EL)`
 
-- `p%weight` は scorer 内で直接掛けず、
-  `pending_eff_time` にすでに織り込み済み
-- `pending_eff_time` は `compute_effective_track_time()` で生成
-  - EI loss がある場合は
-    `weight / loss_rate * (1 - exp(-loss_rate * dt))`
-  - loss が無視できる場合は `weight * dt`
+elastic 実衝突時だけ score します。
 
-## 実装内容
+```text
+score += w * (-delta_E_el_actual)
+```
 
-### EL naive TL の関数化
+### 2. `CL`
 
-`code/scoring.f90` で、既存 naive TL の EL 部分を再利用できるように分離しました。
+現在の輸送では、`CX` と `EL` の scatter collision が rejection を通過した瞬間が
+collision score のタイミングです。
 
-- `tl_el_rate_from_ion_sample(...)`
-  - 背景イオン速度が与えられたときの EL 1 サンプル rate を返す
-- `tl_el_sample_once(...)`
-  - naive TL と同じ 1 回サンプル
-- `tl_el_sample_avg(..., n_inner)`
-  - inner multi-sampling の平均
+pure scatter-collision based CL として、各アクセプト scatter collision ごとに
 
-既存の `score_track_length_estimator(...)` は、元の 1 サンプル挙動を保ったまま上記関数を使う形にしています。
+```text
+score_cl_cx += w * (R_cx / R_s) * s_cx
+score_cl_el += w * (R_el / R_s) * s_el_bar
+score_cl_ei += w * (R_a  / R_s) * s_a
+```
 
-### inner multi-sampling TL の追加
+を足します。ここで
 
-`code/scoring.f90` に以下を追加しました。
+- `R_s = R_cx + R_el`
+- `s_cx`
+  - その衝突点の sampled ion velocity に対する CX 寄与
+- `s_el_bar`
+  - elastic の 1 collision あたり期待寄与
 
-- `score_inner_multi_track_length(...)`
+です。
 
-この scorer は elastic 項だけを評価し、
+つまり、`CL` は actual channel を見て `CX` か `EL` のどちらかだけを足すのではなく、
+アクセプトされた scatter collision ごとに両チャネルの期待寄与を score します。
+
+### 3. `CLInner(EL)`
+
+`CL` の elastic 項の比較用です。
+
+- elastic 1 collision あたり期待寄与を inner multi-sampling で評価
+- そのあと pure CL に合わせて `R_el / R_s` を掛ける
+
+ので、`CL(EL)` と同じ scatter-collision based の定義で比較できます。
+
+### 4. `TR`
+
+lookup-based TR の mainline です。
+
+elastic 項は `dd_00_elastic.cdf` の
+
+- `reaction_rate`
+- `I_1_0`
+- `I_1_1*up`
+- `I_1_2*up^2`
+
+から unit-time expected source を作り、
+
+```text
+score_tr_el += s_c_el_lookup * pending_eff_time
+```
+
+を足します。
+
+### 5. `TRInner(EL)`
+
+elastic 項を inner multi-sampling で
 
 ```text
 s_c_el = average_m [ n_i * sigma_el(E_rel_m) * v_rel_m * (-delta_E_el_m) ]
-score += s_c_el * pending_eff_time
 ```
 
-に対応します。
+として評価し、`pending_eff_time` に掛ける比較用 TR です。
 
-### pre-tabulated TL の追加
+### 6. `TRPretab(EL)`
 
-専用の軽量 table 形式を追加しました。
+offline Monte Carlo で作った軽量 table を runtime lookup して、
 
-- `code/tl_el_table_reader.f90`
-  - table の read/write
-  - default grid 生成
-  - bilinear interpolation
-- `code/build_tl_el_table.f90`
-  - offline Monte Carlo で EL table を生成
-- `code/scoring.f90`
-  - `score_pretabulated_track_length(...)`
+```text
+score_tr_pretab_el += s_c_el_table * pending_eff_time
+```
 
-lookup 変数は最初の task 方針に合わせて、まずは `(etm, tim)` を使っています。
+を足す比較用 TR です。
 
-- `etm`
-  - drift ベースの相対エネルギー座標
-- `tim`
-  - 背景イオン温度座標
+## 実装の対応
 
-### main への配線
+### `code/scoring.f90`
 
-`code/main.f90` では、pending TL flush のたびに以下を実行します。
+主要 routine は次です。
 
-1. `TL` naive
-2. `TLInner(EL)`
-3. `TLPretab(EL)`
-4. 既存 `TLLookup`
+- `score_analog_elastic(...)`
+  - `A(EL)` を score
+- `score_collision_estimator(...)`
+  - pure scatter-collision based `CL`
+- `score_inner_multi_collision_el(...)`
+  - `CLInner(EL)`
+- `score_track_length_estimator(...)`
+  - lookup-based `TR`
+- `score_inner_multi_track_length(...)`
+  - `TRInner(EL)`
+- `score_pretabulated_track_length(...)`
+  - `TRPretab(EL)`
 
-これにより、同一の粒子履歴に対して各 estimator を同時比較できます。
+elastic の lookup kernel は
 
-### 出力の追加
+- `compute_el_lookup_coords(...)`
+- `compute_el_lookup_rate_and_score(...)`
 
-`ntscrg.csv` に以下の列を追加しました。
+に分離しています。
 
-- `TLInner_Q_el[W/m3]`
-- `TLPretab_Q_el[W/m3]`
+### `code/main.f90`
 
-コンソール最終出力にも以下を追加しています。
+実衝突時には
 
-- `TLInner(EL)`
-- `TLPretab(EL)`
+- `CX`
+  - `CL`
+  - `CLInner(EL)`
+- `EL`
+  - `CL`
+  - `A(EL)`
+  - `CLInner(EL)`
+
+を score します。
+
+flight flush 時には
+
+- `TR`
+- `TRInner(EL)`
+- `TRPretab(EL)`
+
+を score します。
+
+### `code/io.f90`
+
+`ntscrg.csv` とコンソール summary に、以下の比較結果を出します。
+
+- `A_Q_el[W/m3]`
+- `CL_Q_cx[W/m3]`
+- `CL_Q_el[W/m3]`
+- `CL_Q_ei[W/m3]`
+- `CL_Q_total[W/m3]`
+- `CLInner_Q_el[W/m3]`
+- `TR_Q_cx[W/m3]`
+- `TR_Q_el[W/m3]`
+- `TR_Q_ei[W/m3]`
+- `TR_Q_total[W/m3]`
+- `TRInner_Q_el[W/m3]`
+- `TRPretab_Q_el[W/m3]`
 
 ## 追加・変更した主なファイル
 
 - `code/scoring.f90`
-  - EL naive の関数化
-  - inner multi-sampling scorer 追加
-  - pre-tabulated scorer 追加
-- `code/tl_el_table_reader.f90`
-  - 新規
-- `code/build_tl_el_table.f90`
-  - 新規
+  - analog / pure CL / lookup TR と比較用 elastic scorer
 - `code/main.f90`
-  - table 読込
-  - 新 scorer 呼び出し
+  - scorer 呼び出し配線
 - `code/io.f90`
-  - namelist 拡張
-  - CSV / 最終表示拡張
+  - CSV / summary 出力整理
 - `code/data_types.f90`
-  - 新設定・新スコア項目追加
+  - score 項目の再編
+- `code/tl_el_table_reader.f90`
+  - pretabulated TR 用 table 読み書き
+- `code/build_tl_el_table.f90`
+  - offline table builder
 - `Makefile`
-  - main executable に加えて table builder も build
+  - main executable と table builder を build
 - `run/input.nml`
-  - 新パラメータ追加
+  - runtime / builder 設定
 
-## 新しく追加した設定
+## 設定
 
-`run/input.nml` の `&simulation` に以下を追加しました。
+`run/input.nml` の `&simulation` では、少なくとも次を使います。
 
 - `tl_el_inner_samples`
-  - inner multi-sampling のサンプル数
+  - `CLInner(EL)` / `TRInner(EL)` のサンプル数
 - `tl_el_table_file`
-  - pre-tabulated TL 用 table ファイル名
+  - `TRPretab(EL)` 用 table ファイル名
 
-また、table builder 用に新しい namelist を追加しています。
+table builder 側は `&tl_el_table_builder` を使います。
 
-- `&tl_el_table_builder`
-  - `n_table_samples`
-  - `output_file`
-  - `stats_output_file`
-  - `rel_stderr_thresholds`
+- `n_table_samples`
+- `output_file`
+- `stats_output_file`
+- `rel_stderr_thresholds`
 
 ## ビルドと実行
 
@@ -162,48 +220,31 @@ cd /home/mano/project/monte_simulations_ai/3d3v_lookup_check
 make all
 ```
 
-生成される実行ファイル:
+生成物:
 
 - `run/monte_carlo_3d3v_natl`
 - `run/build_tl_el_table`
 
-### 2. pre-tabulated TL 用 table 生成
+### 2. pretab table 生成
 
 ```bash
 cd /home/mano/project/monte_simulations_ai/3d3v_lookup_check/run
 ./build_tl_el_table
 ```
 
-デフォルトでは以下を出力します。
+デフォルト出力:
 
 - `tl_el_table.dat`
-  - runtime lookup 用の平均 table
 - `tl_el_table_stats.csv`
-  - 各グリッド点の統計情報
-  - `mean_rate`, `stddev`, `variance`, `stderr`, `rel_stderr`
 
-`rel_stderr = stderr / abs(mean)` です。
-ただし、近平衡のように平均値そのものが 0 に近い点では `rel_stderr` が非常に大きくなりやすいので、
-その場合は `stderr` の絶対値も併せて見るのが安全です。
-
-builder の最後には、`input.nml` の `rel_stderr_thresholds` に基づいて、たとえば次のような集計も表示されます。
-
-```text
-rel stderr >  1.00%:  2601 / 2601
-rel stderr >  5.00%:  1488 / 2601
-rel stderr > 10.00%:   226 / 2601
-max rel stderr: 4.8657E+01
-max stderr:     7.2952E-11
-```
-
-### 3. 本計算の実行
+### 3. 本計算
 
 ```bash
 cd /home/mano/project/monte_simulations_ai/3d3v_lookup_check/run
 ./monte_carlo_3d3v_natl
 ```
 
-起動時に table が読めた場合は、
+table が読めると起動時に
 
 ```text
 TL EL pretab table loaded: tl_el_table.dat
@@ -211,32 +252,23 @@ TL EL pretab table loaded: tl_el_table.dat
 
 と表示されます。
 
-## 現時点の制約
+## 現時点の注意
 
-- `inner multi-sampling` と `pre-tabulated` の追加対象は elastic 項のみ
-- `TLPretab(EL)` は専用の軽量 table 形式を使用
-  - 既存 `dd_00_elastic.cdf` の完全互換形式にはしていません
-- `TLLookup` の既存 `I_1_x` ベース経路はそのまま残してあり、
-  今回追加した `TLPretab(EL)` とは物理的な意味づけが異なります
-- 分散や統計誤差の自動集計は未実装
-  - simulation 本体側では未実装
-  - ただし table builder 側では `tl_el_table_stats.csv` に
-    `stderr` と `rel_stderr` を出力するようにしています
+- `CLInner(EL)`, `TRInner(EL)`, `TRPretab(EL)` の追加対象は elastic 項のみ
+- `TR` mainline は `I_1_x` lookup ベース
+- `TRPretab(EL)` は専用の軽量 table 形式で、`dd_00_elastic.cdf` そのものではない
+- `A(EL)` は actual EL collision の analog score
+- `CL` は pure scatter-collision based score
+- `TR` は flight-based score
 
-## 今回の実装の狙い
+## このディレクトリで見たいこと
 
-大規模な設計変更はせず、既存コードを温存したまま、
+この構成にしてあることで、同じ条件下で
 
-- 既存 naive TL
-- inner multi-sampling TL
-- pre-tabulated TL
-- 既存 `I_1_x` lookup
+- analog EL の揺らぎがどの程度大きいか
+- pure CL にするとどこまで分散が落ちるか
+- lookup TR を mainline にしたときの振る舞い
+- inner multi-sampling が lookup とどれくらい一致するか
+- pretab TR が runtime lookup TR にどれくらい近いか
 
-を同じ条件で見比べられる状態にすることを優先しています。
-
-そのため、今後の検証では以下を切り分けやすくなっています。
-
-- naive TL の 1 サンプルノイズがどの程度支配的か
-- inner averaging でどこまで安定化するか
-- pre-tabulated にしたときに naive TL 平均へ近づくか
-- 既存 `TLLookup` の差が estimator ノイズではなく kernel 側にあるか
+を切り分けやすくしています。
