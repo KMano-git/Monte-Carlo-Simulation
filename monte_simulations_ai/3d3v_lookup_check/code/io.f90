@@ -434,6 +434,8 @@ contains
 
       real(dp) :: norm
       real(dp) :: cl_total, tr_total
+      character(len=*), parameter :: score_sep = &
+         '================================================================================'
 
       ! 全ステップ累積スコア → 平均 W/m3
       norm = n_init / (dble(n_particles) * dt * dble(n_steps))
@@ -442,19 +444,19 @@ contains
       tr_total = (score%tr_ei + score%tr_cx + score%tr_el) * norm
 
       write(*,'(A)') ''
-      write(*,'(A)') '=========================================='
+      write(*,'(A)') score_sep
       write(*,'(A)') ' Scoring Results (time-averaged) [W/m3]'
-      write(*,'(A)') '=========================================='
-      write(*,'(A)')         '          EI              CX              EL              Total'
-      write(*,'(A,ES16.6)') ' A(EL): ', score%a_el*norm
-      write(*,'(A,4ES16.6)') ' CL: ', &
+      write(*,'(A)') score_sep
+      write(*,'(A16,4A16)') '', 'EI', 'CX', 'EL', 'Total'
+      write(*,'(A16,2A16,ES16.6,A16)') ' A(EL):', '', '', score%a_el*norm, ''
+      write(*,'(A16,4ES16.6)') ' CL:', &
          score%cl_ei*norm, score%cl_cx*norm, score%cl_el*norm, cl_total
-      write(*,'(A,ES16.6)') ' CLInner(EL): ', score%cl_inner_el*norm
-      write(*,'(A,4ES16.6)') ' TR: ', &
+      write(*,'(A16,2A16,ES16.6,A16)') ' CLInner(EL):', '', '', score%cl_inner_el*norm, ''
+      write(*,'(A16,4ES16.6)') ' TR:', &
          score%tr_ei*norm, score%tr_cx*norm, score%tr_el*norm, tr_total
-      write(*,'(A,ES16.6)') ' TRInner(EL): ', score%tr_inner_el*norm
-      write(*,'(A,ES16.6)') ' TRPretab(EL): ', score%tr_pretab_el*norm
-      write(*,'(A)') '=========================================='
+      write(*,'(A16,2A16,ES16.6,A16)') ' TRInner(EL):', '', '', score%tr_inner_el*norm, ''
+      write(*,'(A16,2A16,ES16.6,A16)') ' TRPretab(EL):', '', '', score%tr_pretab_el*norm, ''
+      write(*,'(A)') score_sep
 
    end subroutine output_ntscrg_final
 
