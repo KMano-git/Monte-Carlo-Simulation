@@ -165,7 +165,7 @@ contains
       else
          E_rel = 0.25d0 * M_D_kg * u_mag * u_mag * J_TO_EV
          r_chi = random_double(p%rng)
-         chi = sample_scattering_angle(0.5d0 * E_rel, r_chi)
+         chi = sample_scattering_angle(E_rel, r_chi)
       end if
 
       phi = 2.0d0 * PI * random_double(p%rng)

@@ -21,8 +21,8 @@ Event-driven Monte Carlo Simulation
   現在は enable されている断面積だけで acceptance/type selection を行うよう修正済み。
 
 - EL の CDF 入力軸は `specific_energy [eV/amu]` だが、
-  実装側では `E_rel [eV]` をそのまま入れていた。
-  現在は断面積・散乱角 lookup ともに `0.5 * E_rel` を使うよう修正済み。
+  D + D+ では reduced mass = `1 amu` なので数値的に `E_rel [eV]` と一致する。
+  `0.5 * E_rel` への補正は読み違いで、現在は `E_rel` をそのまま使う。
 
 - `cdf_reader.f90` で `xs_mult` をハードコードしていた。
   現在は CDF から `xs_mult` を読み出すよう修正済み。
@@ -128,7 +128,7 @@ Event-driven Monte Carlo Simulation
 ### 7. 軸定義の点検結果
 
 - CDF の elastic 断面積軸は `specific_energy [eV/amu]`。
-  実装側で `0.5 * E_rel` を渡す現在の扱いはこの軸と整合している。
+  D + D+ では reduced mass = `1 amu` のため、実装側で `E_rel [eV]` をそのまま渡すのが整合する。
 
 - 散乱角テーブル `scattering_angle` は
   `random_num x E[eV/amu]` の 2 次元表で、

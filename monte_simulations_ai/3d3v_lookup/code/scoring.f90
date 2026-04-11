@@ -149,7 +149,7 @@ contains
                chi_d = acos(1.0d0 - 2.0d0 * r_chi)
             else
                r_chi = random_double(rng_work)
-               chi_d = sample_scattering_angle(0.5d0 * E_rel_d, r_chi)
+               chi_d = sample_scattering_angle(E_rel_d, r_chi)
             end if
 
             r_phi = random_double(rng_work)

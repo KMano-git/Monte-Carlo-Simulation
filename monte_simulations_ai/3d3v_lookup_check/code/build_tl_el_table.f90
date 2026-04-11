@@ -88,8 +88,8 @@ program build_tl_el_table
       do j = 1, size(temp_grid)
          plasma%ion_temperature_eV = 2.0d0 * temp_grid(j)
          do i = 1, size(energy_grid)
-            ! energy_grid is specific_energy [eV/amu] from the CDF metadata.
-            ut = sqrt(8.0d0 * energy_grid(i) * EV_TO_J / M_D_kg)
+            ! For D + D+, specific_energy [eV/amu] is numerically equal to E_rel [eV].
+            ut = sqrt(4.0d0 * energy_grid(i) * EV_TO_J / M_D_kg)
          p%vx = plasma%ion_flow_vx + ut
          p%vy = plasma%ion_flow_vy
          p%vz = plasma%ion_flow_vz

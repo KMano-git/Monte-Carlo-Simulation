@@ -7,7 +7,7 @@
 - `x` 方向だけを空間ビニングし、`y,z` は自由飛行の内部座標として保持
 - CX / EL / EI を考慮
 - 粒子固有 RNG による再現性確保
-- EL CDF の `0.5 * E_rel` 補正と `xs_mult` 読み出しを反映
+- EL CDF 軸を DEGAS と整合する `E_rel` に修正し、`xs_mult` 読み出しを反映
 - 標準では `CL` と `TL` を出力し、`enable_tl_lookup=.true.` のときだけ `TLLu` を追加
 
 ## ディレクトリ構成

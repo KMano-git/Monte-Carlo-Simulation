@@ -30,7 +30,9 @@ contains
       real(dp), intent(in) :: E_eV
       real(dp) :: sigma
 
-      sigma = get_sigma_elastic(0.5d0 * E_eV)
+      ! DEGAS/EIRENE 側の elastic grid は specific_energy [eV/amu] だが、
+      ! D + D+ では reduced mass = 1 amu なので数値的に E_rel [eV] と一致する。
+      sigma = get_sigma_elastic(E_eV)
    end function sigma_el
 
    function sigma_ei(E_eV) result(sigma)

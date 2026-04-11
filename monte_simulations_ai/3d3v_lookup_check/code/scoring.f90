@@ -247,7 +247,7 @@ contains
          if (use_isotropic) then
             chi_d = acos(1.0d0 - 2.0d0 * r_chi)
          else
-            chi_d = sample_scattering_angle(0.5d0 * E_rel_d, r_chi)
+               chi_d = sample_scattering_angle(E_rel_d, r_chi)
          end if
 
          r_phi = random_double(rng_work)
@@ -490,9 +490,9 @@ contains
       m_ref = 0.5d0 * M_D_kg
       m_i = M_D_kg
 
-      ! CDF lookup grids use specific_energy [eV/amu], so convert the
-      ! center-of-mass relative energy E_rel [eV] to E_rel / 2 [eV/amu] for D.
-      etm = 0.25d0 * m_ref * ut2 * J_TO_EV
+      ! DEGAS/EIRENE の Etm 軸は specific_energy [eV/amu] で、
+      ! D + D+ では reduced mass = 1 amu のため数値的に E_rel [eV] と一致する。
+      etm = 0.5d0 * m_ref * ut2 * J_TO_EV
       tim = (m_ref / m_i) * plasma%ion_temperature_eV
    end subroutine compute_el_lookup_coords
 
