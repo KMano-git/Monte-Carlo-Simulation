@@ -1,60 +1,102 @@
-dd_00_elastic_pure_el_angle.cdfからI_kernelを計算するコード
-`plot_cdf`: dd_00_elastic*.cdfを図示するコード
-`cdf_compat.py`: dd_00_elastic.cdf 互換の CDL テキストを読み書きし、transport table を再計算する共通ユーティリティ
-`build_elastic_cdf_compatible.py`: 分割した CSV/JSON 断面積データを `.cdf` 互換ファイルへ戻す汎用生成器
+`el_data/` は、D + D+ の断面積テーブルまわりを扱う作業ディレクトリです。現在は「基準 CDF」「共通ユーティリティ」「Bachmann 系」「Krstic 系」「図出力」を分けて運用します。
 
-## I_kernel の表出力に関する設計書
+## 置き場所の整理
 
-Python実装用：モンテカルロシミュレーション用 $I^{(l,n)}$ 積分式の定義
+- ルート直下
+  - 基準 CDF と共通スクリプトを置く場所
+  - `dd_00_elastic*.cdf` はここに残す
+  - `figure/` はローカル図出力専用で、git 管理対象外
+- `Bachmann/`
+  - Bachmann 由来の抽出データと互換 CDF
+- `Krstic/`
+  - Krstic 由来の生成物と検証結果の正規置き場
+  - Krstic 生成物はここを正本とし、`el_data/` 直下には重複配置しない
+  - 係数の source of truth は `DpD_fit_memo_v2.md` の
+    - Section 11: DCS 係数
+    - Section 12: integral fit 係数
+    - Section 2: integral reference table
 
-離散的な拡散断面積データ $\sigma^{(1)}(E_r)$ を連続化した関数 sigma_1(Er) を用いて、以下の3つの積分値（$I_{1,0}$、$I_{1,1} \cdot u_p$、$I_{1,2} \cdot u_p^2$）の2次元テーブルを作成するPython関数を実装してください。数値積分には scipy.integrate.quad などを想定しています。
+## 主要ファイル
 
-【物理定数・変数の定義】
-中性粒子の質量: $m_\alpha$
-背景イオンの質量: $m_\beta$
-換算質量: $m_r = \frac{m_\alpha m_\beta}{m_\alpha + m_\beta}$
-中性粒子のエネルギー（独立変数1）: $E_\alpha$
-背景イオンの温度（独立変数2）: $T_\beta$
-中性粒子の速度: $v_\alpha = \sqrt{\frac{2 E_\alpha}{m_\alpha}}$
-背景イオンの熱速度: $u_p = a_\beta = \sqrt{\frac{2 T_\beta}{m_\beta}}$
-速度比パラメータ: $\delta = \frac{v_\alpha}{a_\beta}$
-無次元化された相対速度（積分変数）: $\xi$
-相対衝突エネルギー: $E_r(\xi) = \frac{1}{2} m_r (a_\beta \xi)^2$
+- `cdf_compat.py`
+  - `dd_00_elastic.cdf` 互換の CDL テキストを読み書きする共通ユーティリティ
+  - `compute_transport_tables(...)`
+    - `scattering_angle` から `<1-cos(theta)> = R_theta` を作り、`sigma_tot * R_theta` を使う旧 surrogate 経路
+  - `compute_transport_tables_from_sigma_momentum(...)`
+    - `sigma_mt(E)` を直接与える新経路
+- `build_elastic_cdf_compatible.py`
+  - 分割した CSV/JSON 断面積データを `.cdf` 互換ファイルへ戻す汎用生成器
+- `krstic_dcs.py`
+  - Krstic の pure-elastic DCS evaluator と、`sigma_t / sigma_mt / sigma_vi / angle CDF` の再構成ユーティリティ
+- `Krstic/generate_krstic_integral_data.py`
+  - `DpD_fit_memo_v2.md` の Section 2 / Section 12 を読み、Krstic integral fit 系の JSON / CSV を再生成する
+- `build_krstic_angle_cdf.py`
+  - Krstic DCS から `cross_section`, `scattering_angle`, `reaction_rate`, `I_1_x`, `sigv_max` をまとめて再構成する full rebuild スクリプト
+- `Krstic/build_krstic_total_elastic_cdf.py`
+  - `total elastic` 用の正規 builder
+  - `sigma_t` と `sigma_mt` は Krstic integral fit を優先し、`scattering_angle` は elastic-total DCS から再構成する
+- `calc_I_kernel.py`
+  - 比較用の補助スクリプト
+  - Krstic DCS から `sigma_mt(E_cm)` を作り、I-kernel 系だけを再計算する
+  - `cross_section`, `scattering_angle`, `angle_min` は入力 CDF から保持し、`reaction_rate`, `I_1_0`, `I_1_1_up`, `I_1_2_up2`, `sigv_max` だけを更新する
+- `plot_cdf.py`
+  - 既定では `Krstic/krstic_dd_pure_dcs_compat.cdf` を図示する
+- `plot_cdf_test.py`
+  - 既定ではルートの `dd_00_elastic_pure_el_angle_fixed.cdf` を図示する
 
-【計算すべき3つの積分式】
-1. $I^{(1,0)}$ の計算:
-$$I_{1,0}(E_\alpha, T_\beta) = \frac{a_\beta^2}{\sqrt{\pi} v_\alpha} \int_0^\infty \xi^2 \sigma^{(1)}(E_r(\xi)) \left\{ e^{-(\xi - \delta)^2} - e^{-(\xi + \delta)^2} \right\} d\xi$$
+## 基準 CDF の扱い
 
-2. $I^{(1,1)} \cdot u_p$ の計算:
-（※論文式(58)の定義より $(-1)^1 = -1$ となるため、中括弧内の符号がプラスになります）
-$$I_{1,1\_up}(E_\alpha, T_\beta) = \frac{a_\beta^3}{\sqrt{\pi} v_\alpha} \int_0^\infty \xi^3 \sigma^{(1)}(E_r(\xi)) \left\{ e^{-(\xi - \delta)^2} + e^{-(\xi + \delta)^2} \right\} d\xi$$
+- `dd_00_elastic.cdf`
+  - 現在の基準となる `dd_00_elastic.cdf` 互換データ
+- `dd_00_elastic_pure_el.cdf`
+- `dd_00_elastic_pure_el_angle.cdf`
+- `dd_00_elastic_pure_el_angle_fixed.cdf`
+- `dd_00_elastic_regen.cdf`
+  - いずれもルート側の既存・派生 CDF 群
+  - Krstic スクリプトの正規出力先ではない
+  - とくに `dd_00_elastic_pure_el_angle_fixed.cdf` は非 Krstic の既存ファイルとして扱い、Krstic スクリプトで上書きしない
 
-3. $I^{(1,2)} \cdot u_p^2$ の計算:
-（※論文式(58)の定義より $(-1)^2 = 1$ となるため、中括弧内の符号がマイナスになります）
-$$I_{1,2\_up2}(E_\alpha, T_\beta) = \frac{a_\beta^4}{\sqrt{\pi} v_\alpha} \int_0^\infty \xi^4 \sigma^{(1)}(E_r(\xi)) \left\{ e^{-(\xi - \delta)^2} - e^{-(\xi + \delta)^2} \right\} d\xi$$
+## Krstic 系ファイルの位置づけ
 
----
+- `Krstic/krstic_dd_total_elastic_integral_priority.cdf`
+  - `total elastic` の正規データ
+  - `sigma_t` と `sigma_mt` は Krstic integral fit を使い、`scattering_angle` は elastic-total DCS から再構成する
+- `Krstic/krstic_dd_pure_dcs_compat.cdf`
+  - `pure elastic` の正規データ
+  - pure-elastic DCS から `cross_section`, `scattering_angle`, `reaction_rate`, `I_1_x`, `sigv_max` を再構成した full rebuild
+- `Krstic/krstic_dd_dcs_coeffs.json`
+  - Section 11 の手動入力から作る共通 DCS 係数 JSON
+  - total / pure の両 workflow で共有する
 
-## `calc_I_kernel.py` 実装と計算の詳細 (追記)
+## いまの使い分け
 
-本スクリプトは、CDFファイルから $I_{1,x}$ テーブルを正しく再計算し、ファイルを上書き出力するために作成されました。以下の計算手法と検証を経て実装されています。
+- `total elastic` の正式データを使いたいとき
+  - `Krstic/krstic_dd_total_elastic_integral_priority.cdf`
+- `pure elastic` の正式データを使いたいとき
+  - `Krstic/krstic_dd_pure_dcs_compat.cdf`
+- 既存 CDF を下敷きにして I-kernel 差し替えの影響だけを見たいとき
+  - `calc_I_kernel.py`
+  - これは比較用であり、正式データの生成 workflow ではない
 
-### 1. 基礎データの読み込みと補間
-* `dd_00_elastic_pure_el_angle.cdf` をパースし、全断面積 $\sigma_{tot}(E)$ (101点) と 散乱角データ $\theta(R, E)$ (乱数251点 $\times$ エネルギー51点) の配列を取得。
-* $\sigma_{tot}(E)$ は `scipy.interpolate.interp1d` を用いて3次スプライン補間関数 `f_sigma_tot(E)` とした。
+## 再生成
 
-### 2. 運動量輸送断面積 $\sigma^{(1)}(E_r)$ の評価
-* 散乱角の生データから期待値 $\int_0^1 (1-\cos\theta(R,E)) dR$ を `scipy.integrate.simpson` (シンプソン則) で各エネルギーごとに計算し、エネルギー $E_r$ に対する補間関数 `f_R_theta(E_r)` を作成。
-* 任意の相対衝突エネルギー $E_r$ における拡散断面積は、$\sigma^{(1)}(E_r) = f\_sigma\_tot(E_r) \times f\_R\_\theta(E_r)$ として算出するようにした。（これにより、補間範囲外のエネルギーに対しても不自然な定数外挿を防ぎ、全断面積に比例した正しい振る舞いを保つ設計としている）。
+```bash
+python3 Krstic/generate_krstic_integral_data.py
+python3 Krstic/build_krstic_total_elastic_cdf.py
+python3 build_krstic_angle_cdf.py
+python3 plot_cdf.py
+python3 plot_cdf_test.py
+```
 
-### 3. $I_{1,0}, I_{1,1\_up}, I_{1,2\_up2}$ の数値積分
-* $51 \times 51$ の $(E_\alpha, T_\beta)$ グリッドごとに、上記の理論式に基づく変数変換積分を実行。
-* 換算処理から、$\delta = \sqrt{E_\alpha / T_\beta}$、$v_\alpha = c_0 \sqrt{E_\alpha}$、$a_\beta = c_0 \sqrt{T_\beta}$ ($c_0 = 1.389\times 10^6$ cm/s, eV/amu変換の速度乗数) を算出。
-* 積分変数 $\xi$ について、計算の安定性と高速化のため積分の実質的な上限を $\max(\xi) = \delta + 6.0$ とし、1000グリッドで `integrate.simpson` を用いて数値積分を実行（`quad` で発生し得る指数項による微分・収束エラーを回避）。
-* `E_r(xi)` への変換式は $E_{r} = T_\beta \xi^2$ [eV/amu] を用いて整合を取っている。
+比較用の hybrid 出力が必要な場合だけ、追加で以下を実行する:
 
-### 4. （参考）計算ロジックの正当性確認
-コードの開発過程において、積分ロジック全体の正確性を確かめるため、同じ積分体系を用いて「Reaction Rate（反応率）」を計算し、既存CDFの `reaction_rate` (CX差し引き前) テーブルと比較検証を行なった。結果、**全パラメータグリッドにおいて誤差0.3%未満 (Ratio=1.000)** で値が完全一致した。これにより、速度パラメータ $v_\alpha, a_\beta, \delta$ 等の変換・積分解法・定数設定に一切の物理的誤りや係数ズレがないことが保証されている。
+```bash
+python3 calc_I_kernel.py
+```
 
-### 5. `reaction_rate` および `sigv_max` の連動更新
-対象とした `dd_00_elastic_pure_el_angle.cdf` では、CX成分の差し引き等によって元となる全断面積 $\sigma_{tot}$ 自体が修正されている。このため、$I_{1,x}$ 系列だけでなく、修正された $\sigma_{tot}$ に基づいて `reaction_rate` テーブルも再積分して再計算し、ファイル内の `reaction_rate` 配列およびその最大値である `sigv_max` スカラ値も同時に上書き拡張する仕様とした。これにより、出力される固定版CDF内ではすべての物理参照テーブルが最新の純粋な弾性散乱断面積と完全に整合した状態となっている。
+## 注意点
+
+- `calc_I_kernel.py` は full rebuild ではありません。比較用の I-kernel 差し替え器です。
+- Krstic の DCS fit 入力は `E_cm` です。D + D では `E_cm = 0.5 * E_lab` を使います。
+- `g_pure = g_el_total - g_se` は、現行の手動入力 DCS 係数でも局所的に負になる点が残っています。これは raw OCR をそのまま使っているという意味ではなく、pure 再構成の整合性確認がまだ必要だという意味です。`build_krstic_angle_cdf.py` と `calc_I_kernel.py` は `negative-pure-policy` で扱いを切り替えます。
+- より詳しい Krstic 側の変更履歴と生成物の説明は `Krstic/README.md` を参照してください。

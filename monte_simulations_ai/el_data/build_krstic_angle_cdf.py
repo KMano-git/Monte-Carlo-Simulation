@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Rebuild Krstic pure-elastic angle/CDF and I-kernel tables from direct DCS fits."""
+"""Krstic full-rebuild workflow: rebuild a dd_00_elastic-compatible CDF from direct DCS fits."""
 
 from __future__ import annotations
 
@@ -21,6 +21,11 @@ def write_csv(path: Path, rows: list[dict[str, object]]) -> None:
         writer.writerows(rows)
 
 
+def to_cdf_compatible_angle_order(angle_grid: np.ndarray) -> np.ndarray:
+    """Match the legacy dd_00_elastic.cdf convention: pi -> 0 along probability."""
+    return np.asarray(angle_grid, dtype=float)[:, ::-1]
+
+
 def parse_args() -> argparse.Namespace:
     this_dir = Path(__file__).resolve().parent
     out_dir = this_dir / "Krstic"
@@ -37,8 +42,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--coeff-json",
-        default=str(out_dir / "krstic_pure_dcs_coeffs.json"),
-        help="Output/input Krstic DCS coefficient JSON.",
+        default=str(out_dir / "krstic_dd_dcs_coeffs.json"),
+        help="Shared output/input Krstic DCS coefficient JSON.",
     )
     parser.add_argument(
         "--output-cdf",
@@ -162,7 +167,8 @@ def main() -> None:
         tabulated["inverse_cdf_rad"],
         angle_energy_cm,
     )
-    scattering_angle = angle_table.ravel()
+    angle_table_compat = to_cdf_compatible_angle_order(angle_table)
+    scattering_angle = angle_table_compat.ravel()
 
     transport = compute_transport_tables_from_sigma_momentum(
         template,
@@ -249,7 +255,7 @@ def main() -> None:
                     "energy_lab_ev": float(energy_lab),
                     "energy_cm_ev": float(0.5 * energy_lab),
                     "probability": float(probability),
-                    "theta_rad": float(angle_table[energy_index, prob_index]),
+                    "theta_rad": float(angle_table_compat[energy_index, prob_index]),
                 }
             )
     write_csv(Path(args.angle_csv), runtime_angle_rows)

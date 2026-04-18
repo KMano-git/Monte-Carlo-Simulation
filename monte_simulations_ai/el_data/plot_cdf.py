@@ -1,5 +1,5 @@
 """
-dd_00_elastic.cdf の各変数を図示するスクリプト
+CDF/CDL ファイルの各変数を図示するスクリプト
 
 CDFファイル構造 (xs_data_tab 内の格納順):
   [0] cross_section    : rank=1, 101点,       E [eV/amu]
@@ -20,8 +20,9 @@ import os
 # CDFファイルのパース
 # =====================================================================
 CDF_PATH = os.path.join(os.path.dirname(__file__), "Krstic",
-                        "krstic_dd_composite_compat.cdf")
-OUT_DIR  = os.path.dirname(os.path.abspath(__file__))
+                        "krstic_dd_total_elastic_integral_priority.cdf")
+OUT_DIR = os.path.join(os.path.dirname(__file__), "figure")
+os.makedirs(OUT_DIR, exist_ok=True)
 
 def parse_array(text, name):
     """CDL テキストからカンマ区切りの数値配列を抽出する"""

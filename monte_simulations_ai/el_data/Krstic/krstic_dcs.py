@@ -81,6 +81,7 @@ def parse_krstic_dcs_markdown(path: str | Path) -> dict[str, list[DifferentialFi
         raise ValueError(f"{MANUAL_SECTION_MARKER!r} was not found in {markdown_path}")
 
     body = text.split(MANUAL_SECTION_MARKER, maxsplit=1)[1]
+    body = re.split(r"\n##\s+(?!E\s*=)", body, maxsplit=1)[0]
     fits_by_channel: dict[str, list[DifferentialFit]] = {
         "Elastic": [],
         "Spin Exchange": [],

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Recompute reaction_rate and I_1_x using sigma_mt reconstructed from Krstic DCS."""
+"""Auxiliary Krstic workflow: recompute only the I-kernel tables from DCS-derived sigma_mt."""
 
 from __future__ import annotations
 
@@ -17,13 +17,16 @@ def parse_args() -> argparse.Namespace:
         "input_cdf",
         nargs="?",
         default=str(this_dir / "../test/cdf_change/dd_00_elastic_pure_el_angle.cdf"),
-        help="Input CDF/CDL file.",
+        help=(
+            "Source CDF/CDL file. "
+            "cross_section, scattering_angle, and angle_min are preserved from this file."
+        ),
     )
     parser.add_argument(
         "output_cdf",
         nargs="?",
-        default=str(out_dir / "krstic_dd_pure_el_angle_fixed.cdf"),
-        help="Output CDF/CDL file.",
+        default=str(out_dir / "krstic_dd_pure_i_kernel_hybrid.cdf"),
+        help="Auxiliary hybrid output CDF/CDL file.",
     )
     parser.add_argument(
         "--memo",
@@ -32,8 +35,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--coeff-json",
-        default=str(out_dir / "krstic_pure_dcs_coeffs.json"),
-        help="Krstic DCS coefficient JSON. It is regenerated automatically when missing.",
+        default=str(out_dir / "krstic_dd_dcs_coeffs.json"),
+        help="Shared Krstic DCS coefficient JSON. It is regenerated automatically when missing.",
     )
     parser.add_argument(
         "--negative-pure-policy",
@@ -132,6 +135,7 @@ def main() -> None:
     cdf.write(output_path)
 
     print(f"Wrote {output_path}")
+    print("  preserved source blocks        : cross_section, scattering_angle, angle_min")
     print(
         "  sigma_mt source               : Krstic DCS (pure elastic, E_cm = 0.5 * E_lab)"
     )

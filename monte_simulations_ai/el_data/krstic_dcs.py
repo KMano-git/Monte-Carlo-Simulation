@@ -63,6 +63,7 @@ def parse_krstic_dcs_markdown(path: str | Path) -> dict[str, dict[str, dict[str,
         raise ValueError(f"{MANUAL_SECTION_MARKER!r} was not found in {markdown_path}")
 
     body = text.split(MANUAL_SECTION_MARKER, maxsplit=1)[1]
+    body = re.split(r"\n##\s+(?!E\s*=)", body, maxsplit=1)[0]
     parsed: dict[str, dict[str, dict[str, object]]] = {}
     current_energy: str | None = None
     current_channel: str | None = None
@@ -564,7 +565,7 @@ def load_or_build_coefficients(
 def main() -> None:
     this_dir = Path(__file__).resolve().parent
     markdown_path = this_dir / "DpD_fit_memo_v2.md"
-    coeff_json_path = this_dir / "Krstic" / "krstic_pure_dcs_coeffs.json"
+    coeff_json_path = this_dir / "Krstic" / "krstic_dd_dcs_coeffs.json"
     coeff_json_path.parent.mkdir(parents=True, exist_ok=True)
     write_coefficients_json(markdown_path, coeff_json_path)
     print(f"Wrote {coeff_json_path}")

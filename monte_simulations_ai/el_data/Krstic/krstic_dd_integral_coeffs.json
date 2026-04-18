@@ -14,7 +14,9 @@
       ],
       "b_coeffs": [],
       "formula": "sigma(E) = (sum_i a_i (ln E)^i) / (1 + sum_j b_j (ln E)^(j+1))",
-      "method": "analytic_rational_log_fit",
+      "method": "analytic_rational_log_fit_from_manual_entry",
+      "source_markdown": "monte_simulations_ai/el_data/DpD_fit_memo_v2.md",
+      "source_section": "## 12. Cross Section\u306efitting parameters\u306e\u624b\u52d5\u5165\u529b\u6b04",
       "units_input_energy": "eV (center of mass)",
       "units_output_au": "a0^2",
       "units_output_cm2": "cm^2"
@@ -22,7 +24,7 @@
     "momentum_transfer": {
       "a_coeffs": [
         347.935,
-        419.075,
+        419.074,
         117.426,
         -3.24821,
         -1.05819
@@ -33,109 +35,56 @@
         0.0401043
       ],
       "formula": "sigma(E) = (sum_i a_i (ln E)^i) / (1 + sum_j b_j (ln E)^(j+1))",
-      "method": "analytic_rational_log_fit",
+      "method": "analytic_rational_log_fit_from_manual_entry",
+      "source_markdown": "monte_simulations_ai/el_data/DpD_fit_memo_v2.md",
+      "source_section": "## 12. Cross Section\u306efitting parameters\u306e\u624b\u52d5\u5165\u529b\u6b04",
       "units_input_energy": "eV (center of mass)",
       "units_output_au": "a0^2",
       "units_output_cm2": "cm^2"
     },
     "spin_exchange": {
-      "method": "loglog_interpolation_from_page104_reference_points",
-      "reason": "The OCR-transcribed analytic coefficients are incomplete or unreliable for this channel in the current memo snapshot, so the structured working dataset is generated from the tabulated page-104 reference values.",
-      "reference_points": [
-        {
-          "energy_eV_cm": 0.1,
-          "sigma_au": 221.3106
-        },
-        {
-          "energy_eV_cm": 0.1995,
-          "sigma_au": 205.6762
-        },
-        {
-          "energy_eV_cm": 0.5012,
-          "sigma_au": 180.2378
-        },
-        {
-          "energy_eV_cm": 1.0,
-          "sigma_au": 175.2253
-        },
-        {
-          "energy_eV_cm": 1.995,
-          "sigma_au": 161.7602
-        },
-        {
-          "energy_eV_cm": 5.012,
-          "sigma_au": 144.838
-        },
-        {
-          "energy_eV_cm": 10.0,
-          "sigma_au": 132.6478
-        },
-        {
-          "energy_eV_cm": 19.95,
-          "sigma_au": 120.9559
-        },
-        {
-          "energy_eV_cm": 50.12,
-          "sigma_au": 106.0618
-        },
-        {
-          "energy_eV_cm": 100.0,
-          "sigma_au": 95.38493
-        }
+      "a_coeffs": [
+        173.916,
+        -17.6678,
+        0.50714,
+        -0.679823,
+        0.237852,
+        -0.0234413
       ],
+      "b_coeffs": [],
+      "formula": "sigma(E) = (sum_i a_i (ln E)^i) / (1 + sum_j b_j (ln E)^(j+1))",
+      "method": "analytic_rational_log_fit_from_manual_entry",
+      "source_markdown": "monte_simulations_ai/el_data/DpD_fit_memo_v2.md",
+      "source_section": "## 12. Cross Section\u306efitting parameters\u306e\u624b\u52d5\u5165\u529b\u6b04",
       "units_input_energy": "eV (center of mass)",
       "units_output_au": "a0^2",
       "units_output_cm2": "cm^2"
     },
     "viscosity": {
-      "method": "loglog_interpolation_from_page104_reference_points",
-      "reason": "The OCR-transcribed analytic coefficients are incomplete or unreliable for this channel in the current memo snapshot, so the structured working dataset is generated from the tabulated page-104 reference values.",
-      "reference_points": [
-        {
-          "energy_eV_cm": 0.1,
-          "sigma_au": 181.3288
-        },
-        {
-          "energy_eV_cm": 0.1995,
-          "sigma_au": 135.8733
-        },
-        {
-          "energy_eV_cm": 0.5012,
-          "sigma_au": 107.9634
-        },
-        {
-          "energy_eV_cm": 1.0,
-          "sigma_au": 95.45577
-        },
-        {
-          "energy_eV_cm": 1.995,
-          "sigma_au": 67.52089
-        },
-        {
-          "energy_eV_cm": 5.012,
-          "sigma_au": 27.07555
-        },
-        {
-          "energy_eV_cm": 10.0,
-          "sigma_au": 14.10217
-        },
-        {
-          "energy_eV_cm": 19.95,
-          "sigma_au": 7.248538
-        },
-        {
-          "energy_eV_cm": 50.12,
-          "sigma_au": 2.436365
-        },
-        {
-          "energy_eV_cm": 100.0,
-          "sigma_au": 0.8959529
-        }
+      "a_coeffs": [
+        93.1543,
+        -39.1466,
+        8.6021,
+        14.2442,
+        -5.95316,
+        0.598129
       ],
+      "b_coeffs": [
+        -0.139543,
+        0.164132,
+        0.334686,
+        0.0372665
+      ],
+      "formula": "sigma(E) = (sum_i a_i (ln E)^i) / (1 + sum_j b_j (ln E)^(j+1))",
+      "method": "analytic_rational_log_fit_from_manual_entry",
+      "source_markdown": "monte_simulations_ai/el_data/DpD_fit_memo_v2.md",
+      "source_section": "## 12. Cross Section\u306efitting parameters\u306e\u624b\u52d5\u5165\u529b\u6b04",
       "units_input_energy": "eV (center of mass)",
       "units_output_au": "a0^2",
       "units_output_cm2": "cm^2"
     }
   },
-  "source": "monte_simulations_ai/el_data/DpD_fit_memo.md"
+  "source": "monte_simulations_ai/el_data/DpD_fit_memo_v2.md",
+  "source_fit_section": "## 12. Cross Section\u306efitting parameters\u306e\u624b\u52d5\u5165\u529b\u6b04",
+  "source_reference_section": "## 2. Krsti\u0107: D\u207a + D \u7a4d\u5206\u65ad\u9762\u7a4d\u8868\uff08OCR\u88dc\u6b63\u53cd\u6620\u6e08\u307f\uff09"
 }

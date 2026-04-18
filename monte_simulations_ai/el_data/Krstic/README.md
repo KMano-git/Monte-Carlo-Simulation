@@ -1,125 +1,84 @@
-Krstic D+ + D cross-section working files
+Krstic D+ + D working files
 
-This directory stores reproducible intermediate data derived from the
-Krstic fit coefficients summarized in `../DpD_fit_memo_v2.md`.
+このディレクトリは、Krstic 由来の生成物と検証結果の正規置き場です。`el_data/` 直下に一時的に置かれていた Krstic 生成物は、現在はここに集約します。
 
-Recent DCS-based update
+## 正規 workflow
 
-- The Krstic workflow is now split into two layers:
-  - Existing `Krstic/` scripts keep the earlier elastic-total / composite workflow.
-  - New root-level helpers in `../` rebuild pure-elastic tables directly from
-    `g_pure(theta, E) = g_el_total(theta, E) - g_se(theta, E)`.
-- New helper scripts:
-  - `../krstic_dcs.py`
-  - `../build_krstic_angle_cdf.py`
-  - `../calc_I_kernel.py`
-- New defaults write their outputs into this `Krstic/` directory and keep the
-  filenames explicitly Krstic-specific, so they do not overwrite the generic
-  `el_data/` outputs.
-- `../calc_I_kernel.py` no longer uses surrogate `R_theta(E)` from the angle
-  CDF. It now rebuilds `sigma_mt(E_cm)` from direct Krstic DCS moments and
-  uses `E_cm = 0.5 * E_lab` for D + D.
+1. `generate_krstic_integral_data.py`
+   - `../DpD_fit_memo_v2.md` の Section 2 / Section 12 を読み、
+     integral fit / reference table を JSON / CSV に整形する
+2. `build_krstic_total_elastic_cdf.py`
+   - `total elastic` の正規 workflow
+   - `sigma_t` / `sigma_mt` は integral fit を優先
+   - `scattering_angle` は elastic-total DCS から再構成
+3. `../build_krstic_angle_cdf.py`
+   - `pure elastic` の正規 workflow
+   - `sigma_t`, `sigma_mt`, `scattering_angle`, `reaction_rate`, `I_1_x`, `sigv_max` を pure-elastic DCS から再構成する
+4. `../calc_I_kernel.py`
+   - 比較用の補助 workflow
+   - 入力 CDF の `cross_section`, `scattering_angle`, `angle_min` を保持したまま、I-kernel 系だけを Krstic `sigma_mt` で差し替える
+   - 正式データの生成には使わない
 
-Scope
+## 主要出力
 
-- Reliable, structured data are provided for the integral cross-sections:
-  - elastic
-  - momentum-transfer
-  - viscosity
-  - spin-exchange
-- `elastic` and `momentum-transfer` are sampled from the analytic fit
-  coefficients.
-- `viscosity` and `spin-exchange` are sampled from log-log interpolation of
-  the page-104 tabulated values, because the current OCR snapshot of the memo
-  does not preserve those analytic coefficients cleanly enough to regenerate a
-  trustworthy fit.
-- Output tables are sampled on the same logarithmic energy grids that the
-  current `dd_00_elastic.cdf` workflow uses:
-  - 101-point `cross_section` grid
-  - 51-point `scattering_angle` energy grid
-- Differential-fit coefficients are now curated from the manual-entry
-  section in `../DpD_fit_memo_v2.md`.
+- `krstic_dd_total_elastic_integral_priority.cdf`
+  - `total elastic` の正規データ
+  - `sigma_t` / `sigma_mt` は integral fit 優先
+  - `scattering_angle` は elastic-total DCS
+- `krstic_dd_pure_dcs_compat.cdf`
+  - `pure elastic` の正規データ
+  - pure-elastic DCS から `cross_section`, `scattering_angle`, `reaction_rate`, `I_1_x`, `sigv_max` を再構成した full rebuild
+- `krstic_dd_dcs_coeffs.json`
+  - Section 11 から作る共通 DCS 係数 JSON
+  - total / pure の両 workflow で共有する
 
-Generated files
+## 付随ファイル
 
 - `krstic_dd_integral_coeffs.json`
 - `krstic_dd_integral_reference_points.csv`
 - `krstic_dd_integral_cdf_grid_101.csv`
 - `krstic_dd_integral_angle_grid_51.csv`
+- `krstic_total_elastic_validation.csv`
+- `krstic_total_elastic_validation.json`
+- `krstic_total_elastic_scattering_angle_compat.csv`
+- `krstic_total_elastic_transport.csv`
 - `krstic_dd_dcs_coeffs.json`
-- `krstic_dd_dcs_integral_checks.csv`
-- `krstic_dd_scattering_angle_tabulated_31.csv`
-- `krstic_dd_composite_compat.cdf`
-- `krstic_dd_scattering_angle_compat.csv`
-- `krstic_dd_transport_compat.csv`
-- `krstic_dd_angle_validation.json`
-
-New pure-elastic DCS outputs
-
-- `krstic_pure_dcs_coeffs.json`
 - `krstic_pure_dcs_validation.csv`
 - `krstic_pure_dcs_validation.json`
 - `krstic_pure_scattering_angle_compat.csv`
 - `krstic_pure_transport_from_dcs.csv`
-- `krstic_dd_pure_dcs_compat.cdf`
-- `krstic_dd_pure_el_angle_fixed.cdf`
 
-Generator scripts
+## スクリプトの役割
 
 - `generate_krstic_integral_data.py`
-- `krstic_dcs.py`
-- `build_krstic_composite_cdf.py`
-
-New helper scripts outside this directory
-
+  - Section 2 の reference table と Section 12 の manual fitting parameters を整理
+- `build_krstic_total_elastic_cdf.py`
+  - total-elastic 正式版を再生成
 - `../krstic_dcs.py`
+  - Krstic DCS evaluator
 - `../build_krstic_angle_cdf.py`
+  - pure-elastic DCS から full rebuild を作る
 - `../calc_I_kernel.py`
+  - pure-elastic DCS から `sigma_mt` を作り、I-kernel 系だけを差し替える比較用スクリプト
 
-Regeneration
+## 再生成
 
 ```bash
 python3 generate_krstic_integral_data.py
-python3 build_krstic_composite_cdf.py
-python3 ../krstic_dcs.py
+python3 build_krstic_total_elastic_cdf.py
 python3 ../build_krstic_angle_cdf.py
+```
+
+比較用の hybrid 出力を確認したい場合だけ、追加で以下を実行する:
+
+```bash
 python3 ../calc_I_kernel.py
 ```
 
-Notes
+## 現在の注意点
 
-- The fit is tabulated in the memo for 0.1-100 eV (center-of-mass).
-- The generated CSV files are sampled on the exact logarithmic energy grids
-  encoded in the repository `dd_00_elastic.cdf` metadata, and each row carries
-  an `in_tabulated_fit_range` flag so that extrapolated values can be
-  identified explicitly.
-- `build_krstic_composite_cdf.py` now uses the manually curated Krstic
-  differential-fit coefficients directly. It:
-  - parses the `Elastic` and `Spin Exchange` coefficient tables from
-    `../DpD_fit_memo_v2.md`
-  - writes a machine-readable coefficient dump to `krstic_dd_dcs_coeffs.json`
-  - integrates the direct Krstic `Elastic` DCS at the 31 tabulated energies
-  - interpolates the inverse CDF in log-energy onto the runtime 51-point
-    `scattering_angle` energy grid
-  - recomputes `reaction_rate`, `I_1_0`, `I_1_1*up`, `I_1_2*up^2`, and
-    `sigv_max` so that the file remains internally consistent
-- The runtime angle grid extends below the tabulated DCS range. For
-  `E < 0.1 eV`, the angle generator clamps to the 0.1 eV direct-DCS slice.
-- `krstic_dd_dcs_integral_checks.csv` compares the direct DCS integrals against
-  the Krstic integral elastic / momentum-transfer fits at the 31 tabulated
-  energies.
-- `krstic_dd_angle_validation.json` records the remaining mismatch between:
-  - direct DCS and integral-fit transport ratios at the tabulated energies
-  - the runtime 51-point angle table and the log-energy-interpolated direct DCS
-- The new pure-elastic DCS workflow stores both:
-  - a full rebuilt CDF file, `krstic_dd_pure_dcs_compat.cdf`
-  - an I-kernel-only regenerated file, `krstic_dd_pure_el_angle_fixed.cdf`
-- Validation for the new workflow is written to
-  `krstic_pure_dcs_validation.json/csv`.
-- Current limitation:
-  - many tabulated energies still produce locally negative
-    `g_pure = g_el_total - g_se` from the present OCR/manual coefficients.
-  - the current default is `warn-clip`, so these tables are useful for
-    implementation plumbing and comparison work, but the coefficients still
-    need a tighter physical/data review before being treated as final
-    production tables.
+- `krstic_dd_total_elastic_integral_priority.cdf` と `krstic_dd_pure_dcs_compat.cdf` が、現在の 2 本の正式データです。
+- `../calc_I_kernel.py` は比較用であり、正式な pure-elastic データ生成 workflow ではありません。
+- integral fit の source of truth は `../DpD_fit_memo_v2.md` の Section 12、DCS の source of truth は Section 11 です。
+- pure-elastic DCS は `g_pure(theta, E) = g_el_total(theta, E) - g_se(theta, E)` で作っています。
+- 現行の手動入力 DCS 係数でも、一部エネルギーで `g_pure` が局所的に負になります。これは raw OCR をそのまま使っているという意味ではなく、pure 再構成の整合性確認がまだ必要だという意味です。`negative-pure-policy=warn-clip` は実装・比較用には便利ですが、最終 production 用データとして扱う前に見直しが必要です。

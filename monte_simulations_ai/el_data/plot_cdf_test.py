@@ -1,5 +1,5 @@
 """
-dd_00_elastic_pure_el_angle_fixed.cdf の各変数を図示するスクリプト
+復元済みの非Krstic CDF を図示するテスト用スクリプト
 
 CDFファイル構造 (xs_data_tab 内の格納順):
   [0] cross_section    : rank=1, 101点,       E [eV/amu]
@@ -19,8 +19,10 @@ import os
 # =====================================================================
 # CDFファイルのパース
 # =====================================================================
-CDF_PATH = "dd_00_elastic_pure_el_angle_fixed.cdf"
-OUT_DIR  = os.path.dirname(os.path.abspath(__file__))
+THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+CDF_PATH = os.path.join(THIS_DIR, "dd_00_elastic_pure_el_angle_fixed.cdf")
+OUT_DIR = os.path.join(THIS_DIR, "figure", "legacy")
+os.makedirs(OUT_DIR, exist_ok=True)
 
 def parse_array(text, name):
     """CDL テキストからカンマ区切りの数値配列を抽出する"""

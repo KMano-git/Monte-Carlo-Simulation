@@ -322,6 +322,7 @@ def compute_transport_tables(
     *,
     xi_points: int = 1000,
 ) -> dict[str, np.ndarray | float]:
+    """Compute transport tables from angle CDF data via the legacy R_theta surrogate."""
     sigma_energy = cross_section_axis(cdf)
     random_axis, angle_energy = angle_axes(cdf)
     angle_grid = reshape_scattering_angles(scattering_angle, cdf)
@@ -356,6 +357,7 @@ def compute_transport_tables_from_sigma_momentum(
     sigma_momentum_interp=None,
     xi_points: int = 1000,
 ) -> dict[str, np.ndarray | float]:
+    """Compute transport tables from a direct sigma_mt(E) input."""
     if sigma_energy is None:
         sigma_energy = cross_section_axis(cdf)
     sigma_energy = np.asarray(sigma_energy, dtype=float)
