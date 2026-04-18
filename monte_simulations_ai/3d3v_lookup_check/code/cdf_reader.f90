@@ -15,6 +15,7 @@ module cdf_reader
    real(dp) :: energy_grid_sigma(N_ENERGY_SIGMA)  ! 断面積用エネルギーグリッド [eV/amu]
    real(dp) :: sigma_elastic(N_ENERGY_SIGMA)      ! 弾性散乱断面積 [m²]
    real(dp) :: energy_grid_angle(N_ENERGY_ANGLE)  ! 散乱角用エネルギーグリッド [eV/amu]
+   real(dp) :: energy_grid_transport(N_ENERGY_ANGLE) ! reaction_rate / I_1_x 用エネルギーグリッド [eV/amu]
    real(dp) :: temp_grid(N_TEMP_GRID)             ! 温度グリッド [eV/amu]
    real(dp) :: prob_grid(N_PROB)                  ! 確率グリッド
 
@@ -29,6 +30,7 @@ module cdf_reader
    ! 対数グリッドパラメータ
    real(dp) :: log_E_grid_sigma_min, log_E_grid_sigma_dlt
    real(dp) :: log_E_grid_angle_min, log_E_grid_angle_dlt
+   real(dp) :: log_E_grid_transport_min, log_E_grid_transport_dlt
    real(dp) :: log_T_grid_min, log_T_grid_dlt
 
    real(dp) :: sigma_unit_mult = CM2_TO_M2
@@ -53,9 +55,13 @@ contains
 
       integer :: iunit, ios, i, j, k
       real(dp) :: data_array(23320)
-      real(dp) :: xs_mult_flat(80)
-      integer :: data_idx, n_xs_mult
+      real(dp) :: xs_mult_flat(80), xs_min_flat(60), xs_max_flat(60)
+      integer :: data_idx, n_xs_mult, n_xs_min, n_xs_max
       integer :: file_size
+      real(dp) :: sigma_min, sigma_max
+      real(dp) :: transport_energy_min, transport_energy_max
+      real(dp) :: transport_temp_min, transport_temp_max
+      real(dp) :: angle_energy_min, angle_energy_max
 
       ierr  = 0
       iunit = 20
@@ -97,6 +103,20 @@ contains
          return
       end if
 
+      call read_named_real_array(filename, 'xs_min', xs_min_flat, n_xs_min, ios)
+      if (ios /= 0 .or. n_xs_min < 18) then
+         ierr = 4
+         write(*,*) 'Error: xs_min not found or incomplete'
+         return
+      end if
+
+      call read_named_real_array(filename, 'xs_max', xs_max_flat, n_xs_max, ios)
+      if (ios /= 0 .or. n_xs_max < 18) then
+         ierr = 5
+         write(*,*) 'Error: xs_max not found or incomplete'
+         return
+      end if
+
       write(*,'(A,I8)') ' CDF data points read: ', data_idx
 
       if (data_idx < 23306) then
@@ -109,22 +129,37 @@ contains
       ! 読み込んだ数値を配列に格納
       !------------------------------------------------------------------------------
 
-      ! エネルギーグリッドの構築（対数等間隔: 0.001 - 100 eV）
-      log_E_grid_sigma_min = log(0.001d0)
-      log_E_grid_sigma_dlt = log(100.0d0/0.001d0) / (N_ENERGY_SIGMA - 1.0d0)
+      sigma_min = xs_min_flat(1)
+      sigma_max = xs_max_flat(1)
+      transport_energy_min = xs_min_flat(4)
+      transport_energy_max = xs_max_flat(4)
+      transport_temp_min = xs_min_flat(5)
+      transport_temp_max = xs_max_flat(5)
+      angle_energy_min = xs_min_flat(17)
+      angle_energy_max = xs_max_flat(17)
+
+      ! エネルギーグリッドの構築（CDF メタデータに従う）
+      log_E_grid_sigma_min = log(sigma_min)
+      log_E_grid_sigma_dlt = log(sigma_max / sigma_min) / (N_ENERGY_SIGMA - 1.0d0)
       do i = 1, N_ENERGY_SIGMA
          energy_grid_sigma(i) = exp(log_E_grid_sigma_min + (i-1)*log_E_grid_sigma_dlt)
       end do
 
-      log_E_grid_angle_min = log(0.001d0)
-      log_E_grid_angle_dlt = log(100.0d0/0.001d0) / (N_ENERGY_ANGLE - 1.0d0)
+      log_E_grid_angle_min = log(angle_energy_min)
+      log_E_grid_angle_dlt = log(angle_energy_max / angle_energy_min) / (N_ENERGY_ANGLE - 1.0d0)
       do i = 1, N_ENERGY_ANGLE
          energy_grid_angle(i) = exp(log_E_grid_angle_min + (i-1)*log_E_grid_angle_dlt)
       end do
 
-      ! 温度グリッドの構築（CDFから取得した範囲に基づく）
-      log_T_grid_min = log(0.00049665961148444d0)
-      log_T_grid_dlt = log(49.665961148444d0 / 0.00049665961148444d0) / (N_TEMP_GRID - 1.0d0)
+      log_E_grid_transport_min = log(transport_energy_min)
+      log_E_grid_transport_dlt = log(transport_energy_max / transport_energy_min) / (N_ENERGY_ANGLE - 1.0d0)
+      do i = 1, N_ENERGY_ANGLE
+         energy_grid_transport(i) = exp(log_E_grid_transport_min + (i-1)*log_E_grid_transport_dlt)
+      end do
+
+      ! 温度グリッドの構築（CDF メタデータに基づく）
+      log_T_grid_min = log(transport_temp_min)
+      log_T_grid_dlt = log(transport_temp_max / transport_temp_min) / (N_TEMP_GRID - 1.0d0)
       do i = 1, N_TEMP_GRID
          temp_grid(i) = exp(log_T_grid_min + (i-1)*log_T_grid_dlt)
       end do
@@ -382,14 +417,15 @@ contains
          return
       end if
 
-      E_clipped = max(energy_grid_angle(1), min(energy, energy_grid_angle(N_ENERGY_ANGLE)))
+      E_clipped = max(energy_grid_transport(1), min(energy, energy_grid_transport(N_ENERGY_ANGLE)))
       T_clipped = max(temp_grid(1), min(temp, temp_grid(N_TEMP_GRID)))
       log_E = log(E_clipped)
       log_T = log(T_clipped)
 
-      e_idx = int((log_E - log_E_grid_angle_min) / log_E_grid_angle_dlt) + 1
+      e_idx = int((log_E - log_E_grid_transport_min) / log_E_grid_transport_dlt) + 1
       e_idx = max(1, min(e_idx, N_ENERGY_ANGLE - 1))
-      t_E = (log_E - (log_E_grid_angle_min + (e_idx-1)*log_E_grid_angle_dlt)) / log_E_grid_angle_dlt
+      t_E = (log_E - (log_E_grid_transport_min + (e_idx-1)*log_E_grid_transport_dlt)) / &
+         log_E_grid_transport_dlt
 
       t_idx = int((log_T - log_T_grid_min) / log_T_grid_dlt) + 1
       t_idx = max(1, min(t_idx, N_TEMP_GRID - 1))

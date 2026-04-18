@@ -19,8 +19,8 @@ import os
 # =====================================================================
 # CDFファイルのパース
 # =====================================================================
-CDF_PATH = os.path.join(os.path.dirname(__file__), "..",
-                        "3d3v_event-driven", "run", "dd_00_elastic.cdf")
+CDF_PATH = os.path.join(os.path.dirname(__file__), "Krstic",
+                        "krstic_dd_composite_compat.cdf")
 OUT_DIR  = os.path.dirname(os.path.abspath(__file__))
 
 def parse_array(text, name):

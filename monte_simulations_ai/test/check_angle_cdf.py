@@ -1,26 +1,31 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import re
+from pathlib import Path
+import sys
+
+
+def _resolve_el_data_dir():
+    for parent in Path(__file__).resolve().parents:
+        candidate = parent / "el_data" / "cdf_compat.py"
+        if candidate.exists():
+            return candidate.parent
+    raise FileNotFoundError("Could not locate el_data/cdf_compat.py")
+
+
+EL_DATA_DIR = _resolve_el_data_dir()
+if str(EL_DATA_DIR) not in sys.path:
+    sys.path.insert(0, str(EL_DATA_DIR))
+
+from cdf_compat import load_runtime_elastic_tables
 
 def main():
-    with open('../3d3v_event-driven/run/dd_00_elastic.cdf', 'r') as f:
-        content = f.read()
-        
-    match = re.search(r'xs_data_tab\s*=\s*(.*?);', content, re.DOTALL)
-    data_str = match.group(1)
-    tokens = re.findall(r'[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?', data_str)
-    data = np.array([float(x) for x in tokens])
-    
-    # 1. 101 points sigma_orig (cm^2)
-    sigma_orig = data[:101] * 1e-4 # m^2
-    energy_grid_sigma = np.logspace(np.log10(0.001), np.log10(100), 101)
-    
-    # 6. 251 x 51 angle CDF
-    angle_cdf_flat = data[10505:10505 + 251 * 51]
-    angle_cdf = angle_cdf_flat.reshape((51, 251)).T # Fortran is column major: (251, 51)
-    
-    energy_grid_angle = np.logspace(np.log10(0.001), np.log10(100), 51)
-    prob_grid = np.linspace(0, 1, 251)
+    cdf_path = Path(__file__).resolve().parent / '../3d3v_event-driven/run/dd_00_elastic.cdf'
+    tables = load_runtime_elastic_tables(cdf_path, sigma_scale=1e-4)
+    sigma_orig = tables["sigma_elastic"]
+    energy_grid_sigma = tables["energy_grid_sigma"]
+    angle_cdf = tables["angle_cdf"]
+    energy_grid_angle = tables["energy_grid_angle"]
+    prob_grid = tables["prob_grid"]
     
     def get_cx_sigma(E_eV):
         E = np.maximum(E_eV, 0.01)
@@ -48,7 +53,7 @@ def main():
         plt.axvline(1 - p_cx, linestyle='--', color='gray')
         
     plt.xlabel('Probability P')
-    plt.ylabel('Scattering Angle \chi (degrees)')
+    plt.ylabel('Scattering Angle $\\chi$ (degrees)')
     plt.title('Original Angle Inverse CDF')
     plt.legend()
     plt.grid()

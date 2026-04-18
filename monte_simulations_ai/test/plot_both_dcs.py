@@ -2,28 +2,37 @@ import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import re
 import os
+from pathlib import Path
+import sys
+
+
+def _resolve_el_data_dir():
+    for parent in Path(__file__).resolve().parents:
+        candidate = parent / "el_data" / "cdf_compat.py"
+        if candidate.exists():
+            return candidate.parent
+    raise FileNotFoundError("Could not locate el_data/cdf_compat.py")
+
+
+EL_DATA_DIR = _resolve_el_data_dir()
+if str(EL_DATA_DIR) not in sys.path:
+    sys.path.insert(0, str(EL_DATA_DIR))
+
+from cdf_compat import load_runtime_elastic_tables
 
 def load_cdf(filename):
-    with open(filename, 'r') as f:
-        content = f.read()
-    match = re.search(r'xs_data_tab\s*=\s*([\d\s.,eE+-]+);', content, re.DOTALL)
-    data_str = match.group(1).replace('\n', ' ').replace(',', ' ')
-    tokens = data_str.split()
-    data = np.array([float(x) for x in tokens])
-    
-    # Sigma 0 to 100
-    sigma = data[:101] * 1e-4 # to m^2
-    energy_grid_sigma = np.exp(np.linspace(np.log(0.001), np.log(100.0), 101))
-    
-    # Angle 10505 to 10505 + 51*251
-    angle_flat = data[10505:10505 + 51*251]
-    angle_cdf = angle_flat.reshape((51, 251))
-    energy_grid_angle = np.exp(np.linspace(np.log(0.001), np.log(100.0), 51))
-    prob_grid = np.linspace(0.0, 1.0, 251)
-    
-    return energy_grid_sigma, sigma, energy_grid_angle, angle_cdf, prob_grid
+    cdf_path = Path(filename)
+    if not cdf_path.exists():
+        cdf_path = Path(__file__).resolve().parent / filename
+    tables = load_runtime_elastic_tables(cdf_path, sigma_scale=1e-4)
+    return (
+        tables["energy_grid_sigma"],
+        tables["sigma_elastic"],
+        tables["energy_grid_angle"],
+        tables["angle_cdf"].T,
+        tables["prob_grid"],
+    )
 
 def get_dcs(energy, energy_grid_sigma, sigma, energy_grid_angle, angle_cdf, prob_grid):
     sig_val = np.interp(energy, energy_grid_sigma, sigma)

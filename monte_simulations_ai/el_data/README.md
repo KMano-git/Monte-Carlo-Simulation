@@ -1,5 +1,7 @@
 dd_00_elastic_pure_el_angle.cdfからI_kernelを計算するコード
 `plot_cdf`: dd_00_elastic*.cdfを図示するコード
+`cdf_compat.py`: dd_00_elastic.cdf 互換の CDL テキストを読み書きし、transport table を再計算する共通ユーティリティ
+`build_elastic_cdf_compatible.py`: 分割した CSV/JSON 断面積データを `.cdf` 互換ファイルへ戻す汎用生成器
 
 ## I_kernel の表出力に関する設計書
 

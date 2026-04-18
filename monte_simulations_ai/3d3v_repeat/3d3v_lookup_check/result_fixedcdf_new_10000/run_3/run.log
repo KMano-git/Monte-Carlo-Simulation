@@ -1,0 +1,68 @@
+==========================================
+ 3D3V Non-Analog Monte Carlo Simulation
+==========================================
+  n_particles  =      10000
+  n_steps      =       1000
+  dt           =   1.0000E-08
+  tl_el_inner  =         16
+  enable_cx    = T
+  enable_el    = T
+  enable_ei    = F
+  weight_min   =   1.0000E-10
+  tl_el_table  = ../../tl_el_table_1e6_fixedcdf.dat
+  n_i          =   1.0000E+21
+  T_i          =     2.00 eV
+  T_e          =     2.00 eV
+  T_init       =     2.00 eV
+==========================================
+ CDF file size:     549055 bytes
+ CDF data points read:    23320
+ CDF file loaded successfully.
+   xs_mult(y):   1.0000E-04  1.0000E-06  1.0000E-06  1.0000E-08  1.0000E-10
+   Sigma range [m^2]:   4.7826E-19 -   1.5414E-17
+ TL EL pretab table loaded: ../../tl_el_table_1e6_fixedcdf.dat
+ nu_max/n_i = sigma_v_max =   4.9903E-12 [m^3/s]
+ nu_max =   4.9903E+09 [1/s]
+
+Starting simulation...
+  Histogram output at step      1, weight_sum =   1.0000E+04
+  Histogram output at step      2, weight_sum =   1.0000E+04
+  Histogram output at step      3, weight_sum =   1.0000E+04
+  Histogram output at step      5, weight_sum =   1.0000E+04
+  Histogram output at step      7, weight_sum =   1.0000E+04
+  Histogram output at step     10, weight_sum =   1.0000E+04
+  Step    100/  1000  alive=   10000  CX=  1317  EL=  1964
+  Step    200/  1000  alive=   10000  CX=  1350  EL=  1996
+  Step    300/  1000  alive=   10000  CX=  1269  EL=  1926
+  Step    400/  1000  alive=   10000  CX=  1243  EL=  2004
+  Step    500/  1000  alive=   10000  CX=  1269  EL=  2021
+  Step    600/  1000  alive=   10000  CX=  1324  EL=  2082
+  Step    700/  1000  alive=   10000  CX=  1340  EL=  2036
+  Step    800/  1000  alive=   10000  CX=  1256  EL=  1935
+  Step    900/  1000  alive=   10000  CX=  1329  EL=  2000
+  Step   1000/  1000  alive=   10000  CX=  1310  EL=  1934
+Elapsed time:      53.2899 seconds
+
+Simulation complete.
+
+================================================================================
+ Scoring Results (time-averaged) [W/m3]
+================================================================================
+                              EI              CX              EL           Total
+          A(EL):                                    1.206845E+04                
+             CL:    0.000000E+00    1.805893E+05    5.137800E+06    5.318390E+06
+    CLInner(EL):                                    2.792945E+03                
+             TR:    0.000000E+00    2.548859E+05    3.994627E+06    4.249513E+06
+    TRInner(EL):                                   -1.095511E+03                
+   TRPretab(EL):                                    1.621823E+03                
+================================================================================
+
+==========================================
+ Final Statistics
+==========================================
+  Alive particles  =      10000
+  Total weight     =   10000.0000
+  Mean energy      =       2.9794 eV
+  Eff. temperature =       1.9862 eV
+==========================================
+  dE Histogram output (collect_time=  1.0000E-05 s)

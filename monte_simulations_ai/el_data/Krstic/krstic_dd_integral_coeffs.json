@@ -1,0 +1,141 @@
+{
+  "bohr_area_cm2": 2.80028e-17,
+  "fit_range_eV_cm": [
+    0.1,
+    100.0
+  ],
+  "fits": {
+    "elastic": {
+      "a_coeffs": [
+        637.254,
+        -125.31,
+        16.7078,
+        -0.990209
+      ],
+      "b_coeffs": [],
+      "formula": "sigma(E) = (sum_i a_i (ln E)^i) / (1 + sum_j b_j (ln E)^(j+1))",
+      "method": "analytic_rational_log_fit",
+      "units_input_energy": "eV (center of mass)",
+      "units_output_au": "a0^2",
+      "units_output_cm2": "cm^2"
+    },
+    "momentum_transfer": {
+      "a_coeffs": [
+        347.935,
+        419.075,
+        117.426,
+        -3.24821,
+        -1.05819
+      ],
+      "b_coeffs": [
+        1.31735,
+        0.482389,
+        0.0401043
+      ],
+      "formula": "sigma(E) = (sum_i a_i (ln E)^i) / (1 + sum_j b_j (ln E)^(j+1))",
+      "method": "analytic_rational_log_fit",
+      "units_input_energy": "eV (center of mass)",
+      "units_output_au": "a0^2",
+      "units_output_cm2": "cm^2"
+    },
+    "spin_exchange": {
+      "method": "loglog_interpolation_from_page104_reference_points",
+      "reason": "The OCR-transcribed analytic coefficients are incomplete or unreliable for this channel in the current memo snapshot, so the structured working dataset is generated from the tabulated page-104 reference values.",
+      "reference_points": [
+        {
+          "energy_eV_cm": 0.1,
+          "sigma_au": 221.3106
+        },
+        {
+          "energy_eV_cm": 0.1995,
+          "sigma_au": 205.6762
+        },
+        {
+          "energy_eV_cm": 0.5012,
+          "sigma_au": 180.2378
+        },
+        {
+          "energy_eV_cm": 1.0,
+          "sigma_au": 175.2253
+        },
+        {
+          "energy_eV_cm": 1.995,
+          "sigma_au": 161.7602
+        },
+        {
+          "energy_eV_cm": 5.012,
+          "sigma_au": 144.838
+        },
+        {
+          "energy_eV_cm": 10.0,
+          "sigma_au": 132.6478
+        },
+        {
+          "energy_eV_cm": 19.95,
+          "sigma_au": 120.9559
+        },
+        {
+          "energy_eV_cm": 50.12,
+          "sigma_au": 106.0618
+        },
+        {
+          "energy_eV_cm": 100.0,
+          "sigma_au": 95.38493
+        }
+      ],
+      "units_input_energy": "eV (center of mass)",
+      "units_output_au": "a0^2",
+      "units_output_cm2": "cm^2"
+    },
+    "viscosity": {
+      "method": "loglog_interpolation_from_page104_reference_points",
+      "reason": "The OCR-transcribed analytic coefficients are incomplete or unreliable for this channel in the current memo snapshot, so the structured working dataset is generated from the tabulated page-104 reference values.",
+      "reference_points": [
+        {
+          "energy_eV_cm": 0.1,
+          "sigma_au": 181.3288
+        },
+        {
+          "energy_eV_cm": 0.1995,
+          "sigma_au": 135.8733
+        },
+        {
+          "energy_eV_cm": 0.5012,
+          "sigma_au": 107.9634
+        },
+        {
+          "energy_eV_cm": 1.0,
+          "sigma_au": 95.45577
+        },
+        {
+          "energy_eV_cm": 1.995,
+          "sigma_au": 67.52089
+        },
+        {
+          "energy_eV_cm": 5.012,
+          "sigma_au": 27.07555
+        },
+        {
+          "energy_eV_cm": 10.0,
+          "sigma_au": 14.10217
+        },
+        {
+          "energy_eV_cm": 19.95,
+          "sigma_au": 7.248538
+        },
+        {
+          "energy_eV_cm": 50.12,
+          "sigma_au": 2.436365
+        },
+        {
+          "energy_eV_cm": 100.0,
+          "sigma_au": 0.8959529
+        }
+      ],
+      "units_input_energy": "eV (center of mass)",
+      "units_output_au": "a0^2",
+      "units_output_cm2": "cm^2"
+    }
+  },
+  "source": "monte_simulations_ai/el_data/DpD_fit_memo.md"
+}

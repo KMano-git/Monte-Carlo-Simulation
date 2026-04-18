@@ -10,9 +10,9 @@ import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import re
 import os
 import sys
+from pathlib import Path
 
 # ============================================================
 # 物理定数
@@ -24,22 +24,36 @@ CM2_TO_M2 = 1e-4
 
 N_SAMPLES = 10000000
 
+
+def _resolve_el_data_dir():
+    for parent in Path(__file__).resolve().parents:
+        candidate = parent / "el_data" / "cdf_compat.py"
+        if candidate.exists():
+            return candidate.parent
+    raise FileNotFoundError("Could not locate el_data/cdf_compat.py")
+
+
+EL_DATA_DIR = _resolve_el_data_dir()
+if str(EL_DATA_DIR) not in sys.path:
+    sys.path.insert(0, str(EL_DATA_DIR))
+
+from cdf_compat import load_runtime_elastic_tables
+
 # ============================================================
 # CDF / 断面積 (energy_histogram.py と同じ)
 # ============================================================
 def load_elastic_cdf(filename):
-    with open(filename, 'r') as f:
-        content = f.read()
-    match = re.search(r'xs_data_tab\s*=([\d\s.,eE+-]+);', content, re.DOTALL)
-    data_str = match.group(1).replace('\n', ' ').replace(',', ' ')
-    data = np.fromstring(data_str, sep=' ')
-    sigma_raw = data[0:101] * CM2_TO_M2
-    angle_data = data[10505:10505+12801]
-    angle_cdf = angle_data.reshape((251, 51), order='F')
-    energy_grid = np.logspace(np.log10(0.001), np.log10(100), 101)
-    energy_grid_angle = np.logspace(np.log10(0.001), np.log10(100), 51)
-    prob_grid = np.linspace(0.0, 1.0, 251)
-    return energy_grid, sigma_raw, prob_grid, energy_grid_angle, angle_cdf
+    cdf_path = Path(filename)
+    if not cdf_path.exists():
+        cdf_path = Path(__file__).resolve().parent / filename
+    tables = load_runtime_elastic_tables(cdf_path, sigma_scale=CM2_TO_M2)
+    return (
+        tables["energy_grid_sigma"],
+        tables["sigma_elastic"],
+        tables["prob_grid"],
+        tables["energy_grid_angle"],
+        tables["angle_cdf"],
+    )
 
 from scipy.interpolate import RegularGridInterpolator, interp1d
 

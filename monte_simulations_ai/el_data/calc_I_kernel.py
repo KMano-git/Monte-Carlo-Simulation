@@ -1,203 +1,144 @@
-import os
-import re
-import sys
+#!/usr/bin/env python3
+"""Recompute reaction_rate and I_1_x using sigma_mt reconstructed from Krstic DCS."""
+
+from __future__ import annotations
+
+import argparse
+from pathlib import Path
+
 import numpy as np
-import scipy.integrate as integrate
-from scipy.interpolate import interp1d
 
-print("Starting calc_I_kernel.py...", flush=True)
 
-# File paths
-DEFAULT_IN_CDF = '../test/cdf_change/dd_00_elastic_pure_el_angle.cdf'
-DEFAULT_OUT_CDF = 'dd_00_elastic_pure_el_angle_fixed.cdf'
+def parse_args() -> argparse.Namespace:
+    this_dir = Path(__file__).resolve().parent
+    out_dir = this_dir / "Krstic"
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "input_cdf",
+        nargs="?",
+        default=str(this_dir / "../test/cdf_change/dd_00_elastic_pure_el_angle.cdf"),
+        help="Input CDF/CDL file.",
+    )
+    parser.add_argument(
+        "output_cdf",
+        nargs="?",
+        default=str(out_dir / "krstic_dd_pure_el_angle_fixed.cdf"),
+        help="Output CDF/CDL file.",
+    )
+    parser.add_argument(
+        "--memo",
+        default=str(this_dir / "DpD_fit_memo_v2.md"),
+        help="Markdown memo holding the manually curated Krstic DCS coefficients.",
+    )
+    parser.add_argument(
+        "--coeff-json",
+        default=str(out_dir / "krstic_pure_dcs_coeffs.json"),
+        help="Krstic DCS coefficient JSON. It is regenerated automatically when missing.",
+    )
+    parser.add_argument(
+        "--negative-pure-policy",
+        choices=("assert", "warn-clip", "clip"),
+        default="warn-clip",
+        help="How to handle locally negative pure-elastic kernels.",
+    )
+    parser.add_argument(
+        "--xi-points",
+        type=int,
+        default=1000,
+        help="Quadrature points for the xi integration in the I-kernel tables.",
+    )
+    parser.add_argument(
+        "--theta-log-points",
+        type=int,
+        default=8192,
+        help="Log-spaced theta points below the split angle when building sigma_mt from DCS.",
+    )
+    parser.add_argument(
+        "--theta-linear-points",
+        type=int,
+        default=8192,
+        help="Linearly spaced theta points above the split angle when building sigma_mt from DCS.",
+    )
+    return parser.parse_args()
 
-if len(sys.argv) >= 2:
-    IN_CDF = sys.argv[1]
-else:
-    IN_CDF = DEFAULT_IN_CDF
 
-if len(sys.argv) >= 3:
-    OUT_CDF = sys.argv[2]
-else:
-    OUT_CDF = DEFAULT_OUT_CDF
+def main() -> None:
+    args = parse_args()
 
-def parse_array(text, name):
-    pat = re.compile(rf'\b{re.escape(name)}\s*=\s*(.*?)\s*;', re.DOTALL)
-    m = pat.search(text)
-    if not m: return []
-    raw = m.group(1).replace('\n', ' ')
-    vars = [x.strip() for x in raw.split(',') if x.strip()]
-    return vars
+    from cdf_compat import (
+        ElasticCdf,
+        angle_axes,
+        apply_blocks,
+        compute_transport_tables_from_sigma_momentum,
+        cross_section_axis,
+    )
+    from krstic_dcs import (
+        build_tabulated_observables,
+        interpolate_positive_observable,
+        load_or_build_coefficients,
+        write_coefficients_json,
+    )
 
-def parse_int_array(text, name):
-    return [int(v) for v in parse_array(text, name)]
-def parse_float_array(text, name):
-    return [float(v) for v in parse_array(text, name)]
-def make_axis(n, vmin, vmax, spacing):
-    spacing = spacing.replace('"', '').strip()
-    if spacing == 'log' and vmin > 0 and vmax > 0:
-        return np.logspace(np.log10(vmin), np.log10(vmax), n)
-    else:
-        return np.linspace(vmin, vmax, n)
+    input_path = Path(args.input_cdf).resolve()
+    output_path = Path(args.output_cdf).resolve()
+    coeff_json_path = Path(args.coeff_json).resolve()
+    memo_path = Path(args.memo).resolve()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    coeff_json_path.parent.mkdir(parents=True, exist_ok=True)
 
-print("Reading input CDF...", flush=True)
-with open(IN_CDF, 'r') as f:
-    orig_text = f.read()
+    write_coefficients_json(memo_path, coeff_json_path)
+    energy_slices = load_or_build_coefficients(
+        coeff_json_path=coeff_json_path,
+        markdown_path=memo_path,
+    )
 
-xs_data_tab_str = parse_array(orig_text, 'xs_data_tab')
-xs_data_tab = np.array([float(x) for x in xs_data_tab_str])
+    cdf = ElasticCdf.from_file(input_path)
+    prob_axis, _ = angle_axes(cdf)
+    tabulated = build_tabulated_observables(
+        energy_slices,
+        prob_axis,
+        log_points=args.theta_log_points,
+        linear_points=args.theta_linear_points,
+        negative_policy=args.negative_pure_policy,
+    )
 
-xs_data_base = parse_int_array(orig_text, 'xs_data_base')
-xs_data_inc  = parse_int_array(orig_text, 'xs_data_inc')
+    sigma_energy_lab = cross_section_axis(cdf)
+    sigma_energy_cm = 0.5 * sigma_energy_lab
+    sigma_total = cdf.get_block(0)
+    sigma_mt_from_dcs = interpolate_positive_observable(
+        tabulated["energy_cm_ev"],
+        tabulated["sigma_mt_pure_cm2"],
+        sigma_energy_cm,
+    )
+    transport = compute_transport_tables_from_sigma_momentum(
+        cdf,
+        cross_section=sigma_total,
+        sigma_momentum=sigma_mt_from_dcs,
+        sigma_energy=sigma_energy_lab,
+        xi_points=args.xi_points,
+    )
 
-min_f = parse_float_array(orig_text, 'xs_min'); xs_min = [min_f[i*3:(i+1)*3] for i in range(20)]
-spc_r = parse_array(orig_text, 'xs_spacing'); xs_spacing = [spc_r[i*4:(i+1)*4] for i in range(20)]
-tab_f = parse_int_array(orig_text, 'xs_tab_index'); xs_tab_index = [tab_f[i*3:(i+1)*3] for i in range(20)]
-max_f = parse_float_array(orig_text, 'xs_max'); xs_max = [max_f[i*3:(i+1)*3] for i in range(20)]
+    apply_blocks(
+        cdf,
+        cross_section=sigma_total,
+        scattering_angle=cdf.get_block(5),
+        reaction_rate=transport["reaction_rate"],
+        i_1_0=transport["I_1_0"],
+        i_1_1_up=transport["I_1_1_up"],
+        i_1_2_up2=transport["I_1_2_up2"],
+        sigv_max=float(transport["sigv_max"]),
+        angle_min=float(cdf.get_block(7)[0]),
+    )
+    cdf.write(output_path)
 
-def get_data(idx):
-    return np.array(xs_data_tab[xs_data_base[idx] : xs_data_base[idx]+xs_data_inc[idx]])
+    print(f"Wrote {output_path}")
+    print(
+        "  sigma_mt source               : Krstic DCS (pure elastic, E_cm = 0.5 * E_lab)"
+    )
+    print(f"  negative pure policy          : {args.negative_pure_policy}")
+    print(f"  sigma_mt grid points          : {sigma_mt_from_dcs.size}")
+    print(f"  sigv_max                      : {float(transport['sigv_max']):.6e} cm^3/s")
 
-# 1. Total cross section interpolation
-data_cs = get_data(0)
-E_cs = make_axis(xs_tab_index[0][0], xs_min[0][0], xs_max[0][0], xs_spacing[0][0])
-f_sigma_tot = interp1d(E_cs, data_cs, kind='cubic', bounds_error=False, fill_value=(data_cs[0], data_cs[-1]))
 
-# 2. Scattering angle mapping R_theta = \int (1 - \cos\theta) dR
-data_ang = get_data(5)
-n1_ang, n2_ang = xs_tab_index[5][0], xs_tab_index[5][1]
-ang_grid = data_ang.reshape(n2_ang, n1_ang)
-R_rand = make_axis(n1_ang, xs_min[5][0], xs_max[5][0], xs_spacing[5][0])
-E_scat = make_axis(n2_ang, xs_min[5][1], xs_max[5][1], xs_spacing[5][1])
-
-R_theta_vals = np.zeros(n2_ang)
-for i in range(n2_ang):
-    theta_R = ang_grid[i, :]
-    R_theta_vals[i] = integrate.simpson(1.0 - np.cos(theta_R), x=R_rand)
-
-f_R_theta = interp1d(E_scat, R_theta_vals, kind='cubic', bounds_error=False, fill_value=(R_theta_vals[0], R_theta_vals[-1]))
-
-# 3. I_kernel Grids
-n1_I = xs_tab_index[2][0]
-n2_I = xs_tab_index[2][1]
-E_I = make_axis(n1_I, xs_min[2][0], xs_max[2][0], xs_spacing[2][0])
-T_I = make_axis(n2_I, xs_min[2][1], xs_max[2][1], xs_spacing[2][1])
-
-c0 = 1.3891494e6  # cm/s for 1 eV/amu
-
-I10_new = np.zeros((n2_I, n1_I))
-I11_new = np.zeros((n2_I, n1_I))
-I12_new = np.zeros((n2_I, n1_I))
-RR_new = np.zeros((n2_I, n1_I))
-
-print("Calculating I_1_x and Reaction Rate integrals...", flush=True)
-
-# Using a progress counter
-total_points = n2_I * n1_I
-count = 0
-
-for iT in range(n2_I):
-    for iE in range(n1_I):
-        E_val = E_I[iE]
-        T_val = T_I[iT]
-        v_alpha = c0 * np.sqrt(E_val)
-        a_beta = c0 * np.sqrt(T_val)
-        delta = np.sqrt(E_val / T_val)
-        
-        # Integration grid bounds
-        max_xi = delta + 6.0
-        xi_grid = np.linspace(0, max_xi, 1000)
-        
-        # Relative lab energy
-        Er_grid = T_val * xi_grid**2
-        s1_grid = f_sigma_tot(Er_grid) * f_R_theta(Er_grid)
-        
-        # Define exponent terms safely
-        exp_minus = np.exp(-(xi_grid - delta)**2)
-        exp_plus = np.exp(-(xi_grid + delta)**2)
-        
-        diff_exp = exp_minus - exp_plus
-        sum_exp = exp_minus + exp_plus
-        
-        # Integrands for I_1_x (use sigma_1 = sigma_tot * R_theta)
-        integ_10 = xi_grid**2 * s1_grid * diff_exp
-        integ_11 = xi_grid**3 * s1_grid * sum_exp
-        integ_12 = xi_grid**4 * s1_grid * diff_exp
-        
-        # Integrand for Reaction Rate (uses sigma_tot only)
-        # RR formula is mathematically identical to I_1_0 but with sigma_tot instead of sigma^{(1)}
-        s_tot_grid = f_sigma_tot(Er_grid)
-        integ_rr = xi_grid**2 * s_tot_grid * diff_exp
-        
-        res_10 = integrate.simpson(integ_10, x=xi_grid)
-        res_11 = integrate.simpson(integ_11, x=xi_grid)
-        res_12 = integrate.simpson(integ_12, x=xi_grid)
-        res_rr = integrate.simpson(integ_rr, x=xi_grid)
-        
-        pref = 1.0 / (np.sqrt(np.pi) * v_alpha)
-        I10_new[iT, iE] = pref * res_10 * (a_beta**2)
-        I11_new[iT, iE] = pref * res_11 * (a_beta**3)
-        I12_new[iT, iE] = pref * res_12 * (a_beta**4)
-        RR_new[iT, iE]  = pref * res_rr * (a_beta**2)
-        
-        count += 1
-        if count % 500 == 0:
-            print(f"Progress: {count}/{total_points}", flush=True)
-
-print("Integration complete. Copying back to xs_data_tab...", flush=True)
-
-# Replace values in the xs_data_tab array
-def flatten_back(arr):
-    return arr.flatten()  # row-major (T then E corresponds to C-contiguous reshape which we originally achieved with reshape(n2, n1))
-
-RR_flat  = flatten_back(RR_new)
-I10_flat = flatten_back(I10_new)
-I11_flat = flatten_back(I11_new)
-I12_flat = flatten_back(I12_new)
-
-idx_rr = 1; b_rr = xs_data_base[idx_rr]; inc_rr = xs_data_inc[idx_rr]
-idx_10 = 2; b_10 = xs_data_base[idx_10]; inc_10 = xs_data_inc[idx_10]
-idx_11 = 3; b_11 = xs_data_base[idx_11]; inc_11 = xs_data_inc[idx_11]
-idx_12 = 4; b_12 = xs_data_base[idx_12]; inc_12 = xs_data_inc[idx_12]
-
-xs_data_tab[b_rr:b_rr+inc_rr] = RR_flat
-xs_data_tab[b_10:b_10+inc_10] = I10_flat
-xs_data_tab[b_11:b_11+inc_11] = I11_flat
-xs_data_tab[b_12:b_12+inc_12] = I12_flat
-
-# Also we need to recalculate sigv_max since reaction_rate changed
-# sigv_max is at index 6. Let's find max of RR_new
-new_sigv_max = np.max(RR_new)
-idx_6 = 6; b_6 = xs_data_base[idx_6]
-xs_data_tab[b_6] = new_sigv_max
-print(f"Updated sigv_max to {new_sigv_max:.6e}", flush=True)
-
-print("Formatting new xs_data_tab string...", flush=True)
-# To preserve formatting, we write 4 floats per line, or whatever is clean.
-# Actually we can just write it as comma separated list with newlines.
-formatted_strs = []
-for i, val in enumerate(xs_data_tab):
-    if i % 4 == 0 and i > 0:
-        formatted_strs.append(f"\n    {val:.14e}")
-    else:
-        formatted_strs.append(f"{val:.14e}")
-
-new_xs_tab_str = ", ".join(formatted_strs).replace("\n    , ", ",\n    ") 
-# wait, better formatting:
-chunks = [f"{val:.14e}" for val in xs_data_tab]
-lines = []
-for i in range(0, len(chunks), 4):
-    lines.append("    " + ", ".join(chunks[i:i+4]))
-new_xs_tab_str = ",\n".join(lines)
-
-print("Replacing in text and writing output...", flush=True)
-pattern = re.compile(r'(\bxs_data_tab\s*=\s*)(.*?)(;)', re.DOTALL)
-def repl(m):
-    return m.group(1) + "\n" + new_xs_tab_str + "\n  " + m.group(3)
-
-out_text = pattern.sub(repl, orig_text)
-
-with open(OUT_CDF, 'w') as f:
-    f.write(out_text)
-
-print(f"Successfully generated {OUT_CDF}!", flush=True)
+if __name__ == "__main__":
+    main()
