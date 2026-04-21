@@ -43,6 +43,9 @@
   - 既定では `Krstic/krstic_dd_pure_dcs_compat.cdf` を図示する
 - `plot_cdf_test.py`
   - 既定ではルートの `dd_00_elastic_pure_el_angle_fixed.cdf` を図示する
+- `debug_krstic_scattering_angle.py`
+  - Bachmann baseline と Krstic total / pure の `scattering_angle` を同じ runtime energy 軸で比較する debug スクリプト
+  - 代表 energy の線図、angle table から戻した transport ratio、per-energy diff サマリを出力する
 
 ## 基準 CDF の扱い
 
@@ -84,6 +87,7 @@
 python3 Krstic/generate_krstic_integral_data.py
 python3 Krstic/build_krstic_total_elastic_cdf.py
 python3 build_krstic_angle_cdf.py
+python3 debug_krstic_scattering_angle.py
 python3 plot_cdf.py
 python3 plot_cdf_test.py
 ```

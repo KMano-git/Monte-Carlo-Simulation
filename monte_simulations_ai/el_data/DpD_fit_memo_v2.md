@@ -329,7 +329,7 @@ Bachmann は、**中心質量系で interaction velocity が同じなら cross s
 
 ### Spin Exchange
 - a_label: a0-a5
-- a_values: [.368426E+01,-.177531E+01,-.132486E+01,.377422E-01,.137280E+00,.128016E-01]
+- a_values: [.368426E+01,-.177531E+01,-.132486E+01,.377422E-01,.137280E+00,.148016E-01]
 - b_label: b1-b4
 - b_values: [-.539876E+00,-.288025E+00,.879424E-03,.139590E-01]
 - A: .117438E+01
@@ -405,7 +405,7 @@ Bachmann は、**中心質量系で interaction velocity が同じなら cross s
  - b_values: [-.197936E+00,-.164758E+00,-.364947E-01,-.311893E-02,-.926824E-04]
  - A: .108099E+01
  - B: -.545515E-01
- - C: .122528E-01
+ - C: -.122528E-01
 
 ### Spin Exchange
  - a_label: a0-a1
@@ -672,7 +672,7 @@ Bachmann は、**中心質量系で interaction velocity が同じなら cross s
  - a_values: [.467819E+00,.112073E+01,-.489230E+00]
  - b_label: b1-b4
  - b_values: [-.558438E+00,-.129359E+00,-.250963E-01,-.129491E-02]
- - A: .101389E+00
+ - A: .101389E+01
  - B: 0.0
  - C: 0.0
 
@@ -729,7 +729,7 @@ Bachmann は、**中心質量系で interaction velocity が同じなら cross s
 
 ### Spin Exchange
  - a_label: a0-a2
- - a_values: [-.5754303E+00,.142550E+01,.262627E+00]
+ - a_values: [-.574303E+00,.142550E+01,.262627E+00]
  - b_label: b1-b6
  - b_values: [-.309957E+00,-.271542E+00,-.619246E-01,-.698839E-02,-.372146E-03,-.730809E-05]
  - A: .102812E+01
@@ -811,7 +811,7 @@ Bachmann は、**中心質量系で interaction velocity が同じなら cross s
  - a_label: a0-a4
  - a_values: [-.224695E+01,.260816E+01,.414866E+00,-.200755E-01,-.397848E-02]
  - b_label: b1-b4
- - b_values: [-.500666E+00,-.181194E+00,-.163103E-01,.367304E-03]
+ - b_values: [-.500666E+00,-.181194E+00,-.163103E-01,-.367304E-03]
  - A: .112343E+01
  - B: 0.0
  - C: 0.0
@@ -889,7 +889,7 @@ Bachmann は、**中心質量系で interaction velocity が同じなら cross s
 
 ### Spin Exchange
  - a_label: a0-a2
- - a_values: [-.434102E+01,.397210E+01,.501763E+00]
+ - a_values: [-.434102E+01,.397219E+01,.501763E+00]
  - b_label: b1-b4
  - b_values: [-.616269E+00,-.138469E+00,-.755848E-02,-.135204E-03]
  - A: .922278E+00
@@ -927,7 +927,7 @@ Bachmann は、**中心質量系で interaction velocity が同じなら cross s
 
 ### Momentum Transfer
  - a_label: a0-a4
- - a_values: [.347935E+03,.419074E+03,.117426E+03,-.324821E+01,-.105819E+01]
+ - a_values: [.347935E+03,.419075E+03,.117426E+03,-.324821E+01,-.105819E+01]
  - b_label: b1-b3
  - b_values: [.131735E+01,.482389E+00,.401043E-01]
 

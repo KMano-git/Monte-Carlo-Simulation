@@ -3,12 +3,12 @@
   "angle_source": "Krstic elastic-total direct DCS",
   "below_tabulated_energy_policy": "Clamp to the 0.1 eV direct-DCS slice.",
   "cross_section_source": "Krstic integral fit (elastic total)",
-  "max_abs_runtime_angle_vs_integral_ratio_error": 0.10963771993874383,
+  "max_abs_runtime_angle_vs_integral_ratio_error": 0.10963699508493951,
   "max_abs_runtime_angle_vs_interpolated_direct_ratio_error": 0.0054458221213119495,
-  "max_abs_sigma_mt_relative_error_dcs_vs_integral": 0.3006375716315457,
+  "max_abs_sigma_mt_relative_error_dcs_vs_integral": 0.3006360647997983,
   "max_abs_sigma_t_relative_error_dcs_vs_integral": 0.09551977449980065,
   "max_abs_sigma_vi_relative_error_dcs_vs_integral": 1.2831683595079464,
-  "max_abs_transport_ratio_relative_error": 0.2595758659586367,
+  "max_abs_transport_ratio_relative_error": 0.2595744066982366,
   "runtime_angle_range_lab_ev": [
     0.00099318169312296,
     99.318169312296
@@ -20,7 +20,7 @@
   "sigma_momentum_source": "Krstic integral fit (momentum transfer)",
   "sigv_max_cm3_s": 1.4251223505333007e-07,
   "source_coeff_json": "krstic_dd_dcs_coeffs.json",
-  "source_coeff_markdown": "el_data/DpD_fit_memo_v2.md",
+  "source_coeff_markdown": "/home/mano/project/monte_simulations_ai/el_data/DpD_fit_memo_v2.md",
   "tabulated_energy_range_cm_ev": [
     0.1,
     100.0
@@ -32,8 +32,8 @@
       "energy_cm_ev": 0.1,
       "energy_lab_ev": 0.2,
       "sigma_mt_dcs_cm2": 1.1611904361121367e-14,
-      "sigma_mt_integral_cm2": 1.2495340604999243e-14,
-      "sigma_mt_relative_error_dcs_vs_integral": -0.0707012535156043,
+      "sigma_mt_integral_cm2": 1.2493480854664314e-14,
+      "sigma_mt_relative_error_dcs_vs_integral": -0.070562920278044,
       "sigma_t_dcs_cm2": 2.740652904525071e-14,
       "sigma_t_integral_cm2": 2.874382503529238e-14,
       "sigma_t_relative_error_dcs_vs_integral": -0.04652463575740895,
@@ -41,15 +41,15 @@
       "sigma_vi_integral_cm2": 4.995248247603707e-15,
       "sigma_vi_relative_error_dcs_vs_integral": 0.016496723303178973,
       "transport_ratio_dcs": 0.423691170156901,
-      "transport_ratio_integral": 0.4347139112368363,
-      "transport_ratio_relative_error": -0.02535631088633372
+      "transport_ratio_integral": 0.43464921037212373,
+      "transport_ratio_relative_error": -0.025211227706685713
     },
     {
       "energy_cm_ev": 0.1259,
       "energy_lab_ev": 0.2518,
       "sigma_mt_dcs_cm2": 1.4122344740147195e-14,
-      "sigma_mt_integral_cm2": 1.255552221364974e-14,
-      "sigma_mt_relative_error_dcs_vs_integral": 0.12479150606687495,
+      "sigma_mt_integral_cm2": 1.25593231295179e-14,
+      "sigma_mt_relative_error_dcs_vs_integral": 0.12445110254037184,
       "sigma_t_dcs_cm2": 2.8441357257710595e-14,
       "sigma_t_integral_cm2": 2.7372450873145378e-14,
       "sigma_t_relative_error_dcs_vs_integral": 0.039050444898739434,
@@ -57,15 +57,15 @@
       "sigma_vi_integral_cm2": 4.541002360757806e-15,
       "sigma_vi_relative_error_dcs_vs_integral": -0.002400041481929849,
       "transport_ratio_dcs": 0.49654257397714585,
-      "transport_ratio_integral": 0.4586919261207895,
-      "transport_ratio_relative_error": 0.08251867037744409
+      "transport_ratio_integral": 0.45883078529294674,
+      "transport_ratio_relative_error": 0.08219106017509592
     },
     {
       "energy_cm_ev": 0.1585,
       "energy_lab_ev": 0.317,
       "sigma_mt_dcs_cm2": 1.1497624018624317e-14,
-      "sigma_mt_integral_cm2": 1.2078497082312563e-14,
-      "sigma_mt_relative_error_dcs_vs_integral": -0.04809150175967358,
+      "sigma_mt_integral_cm2": 1.2079771459406296e-14,
+      "sigma_mt_relative_error_dcs_vs_integral": -0.04819192504910119,
       "sigma_t_dcs_cm2": 2.4726873032262313e-14,
       "sigma_t_integral_cm2": 2.6069284128687027e-14,
       "sigma_t_relative_error_dcs_vs_integral": -0.051493976198122904,
@@ -73,15 +73,15 @@
       "sigma_vi_integral_cm2": 4.48276748168408e-15,
       "sigma_vi_relative_error_dcs_vs_integral": -0.012321509841597189,
       "transport_ratio_dcs": 0.4649849580099686,
-      "transport_ratio_integral": 0.46332292911032436,
-      "transport_ratio_relative_error": 0.0035871932840354503
+      "transport_ratio_integral": 0.4633718133484738,
+      "transport_ratio_relative_error": 0.003481318058251359
     },
     {
       "energy_cm_ev": 0.1995,
       "energy_lab_ev": 0.399,
       "sigma_mt_dcs_cm2": 1.131710550094905e-14,
-      "sigma_mt_integral_cm2": 1.178589199809827e-14,
-      "sigma_mt_relative_error_dcs_vs_integral": -0.03977522424478874,
+      "sigma_mt_integral_cm2": 1.1787078434065587e-14,
+      "sigma_mt_relative_error_dcs_vs_integral": -0.03987187628770483,
       "sigma_t_dcs_cm2": 2.5517824461663943e-14,
       "sigma_t_integral_cm2": 2.4833064905263328e-14,
       "sigma_t_relative_error_dcs_vs_integral": 0.027574508382792517,
@@ -89,15 +89,15 @@
       "sigma_vi_integral_cm2": 4.036350087373276e-15,
       "sigma_vi_relative_error_dcs_vs_integral": -0.057353680554116715,
       "transport_ratio_dcs": 0.44349805438747397,
-      "transport_ratio_integral": 0.47460480786647763,
-      "transport_ratio_relative_error": -0.06554243227926815
+      "transport_ratio_integral": 0.4746525843278948,
+      "transport_ratio_relative_error": -0.06563649070727273
     },
     {
       "energy_cm_ev": 0.2512,
       "energy_lab_ev": 0.5024,
       "sigma_mt_dcs_cm2": 1.2533322746272244e-14,
-      "sigma_mt_integral_cm2": 1.2283038283478887e-14,
-      "sigma_mt_relative_error_dcs_vs_integral": 0.02037642943195883,
+      "sigma_mt_integral_cm2": 1.2290773112987353e-14,
+      "sigma_mt_relative_error_dcs_vs_integral": 0.0197342861230263,
       "sigma_t_dcs_cm2": 2.4572870270585794e-14,
       "sigma_t_integral_cm2": 2.3658702622353955e-14,
       "sigma_t_relative_error_dcs_vs_integral": 0.03863980467669803,
@@ -105,31 +105,31 @@
       "sigma_vi_integral_cm2": 3.73953708511204e-15,
       "sigma_vi_relative_error_dcs_vs_integral": 0.0009432195421674727,
       "transport_ratio_dcs": 0.5100471621044155,
-      "transport_ratio_integral": 0.5191763250734317,
-      "transport_ratio_relative_error": -0.01758393541486125
+      "transport_ratio_integral": 0.5195032588716171,
+      "transport_ratio_relative_error": -0.018202189506454025
     },
     {
       "energy_cm_ev": 0.3162,
       "energy_lab_ev": 0.6324,
-      "sigma_mt_dcs_cm2": 1.0694351597699587e-14,
-      "sigma_mt_integral_cm2": 1.1012462867947646e-14,
-      "sigma_mt_relative_error_dcs_vs_integral": -0.02888647835298841,
-      "sigma_t_dcs_cm2": 2.193581359132369e-14,
+      "sigma_mt_dcs_cm2": 1.0601726298551088e-14,
+      "sigma_mt_integral_cm2": 1.1011938673194882e-14,
+      "sigma_mt_relative_error_dcs_vs_integral": -0.03725160362927982,
+      "sigma_t_dcs_cm2": 2.184748956064347e-14,
       "sigma_t_integral_cm2": 2.2547687306219997e-14,
-      "sigma_t_relative_error_dcs_vs_integral": -0.027136872468845885,
-      "sigma_vi_dcs_cm2": 3.720399419203026e-15,
+      "sigma_t_relative_error_dcs_vs_integral": -0.031054082667865024,
+      "sigma_vi_dcs_cm2": 3.659509248078826e-15,
       "sigma_vi_integral_cm2": 3.4884751511942963e-15,
-      "sigma_vi_relative_error_dcs_vs_integral": 0.06648299269935443,
-      "transport_ratio_dcs": 0.4875292887212327,
-      "transport_ratio_integral": 0.48840764546658194,
-      "transport_ratio_relative_error": -0.0017984090820489795
+      "sigma_vi_relative_error_dcs_vs_integral": 0.04902832597961182,
+      "transport_ratio_dcs": 0.4852606185769399,
+      "transport_ratio_integral": 0.48838439719523397,
+      "transport_ratio_relative_error": -0.006396147453181844
     },
     {
       "energy_cm_ev": 0.3981,
       "energy_lab_ev": 0.7962,
       "sigma_mt_dcs_cm2": 1.137311029679637e-14,
-      "sigma_mt_integral_cm2": 1.077932431533282e-14,
-      "sigma_mt_relative_error_dcs_vs_integral": 0.05508564025844653,
+      "sigma_mt_integral_cm2": 1.0779167567211146e-14,
+      "sigma_mt_relative_error_dcs_vs_integral": 0.055100983065883735,
       "sigma_t_dcs_cm2": 2.0734692691366635e-14,
       "sigma_t_integral_cm2": 2.1495469774447383e-14,
       "sigma_t_relative_error_dcs_vs_integral": -0.035392438084098865,
@@ -137,15 +137,15 @@
       "sigma_vi_integral_cm2": 3.271650114459553e-15,
       "sigma_vi_relative_error_dcs_vs_integral": 0.037724456056220435,
       "transport_ratio_dcs": 0.548506335062869,
-      "transport_ratio_integral": 0.501469585379645,
-      "transport_ratio_relative_error": 0.09379781158136269
+      "transport_ratio_integral": 0.5014622932328197,
+      "transport_ratio_relative_error": 0.09381371733209809
     },
     {
       "energy_cm_ev": 0.5012,
       "energy_lab_ev": 1.0024,
       "sigma_mt_dcs_cm2": 1.0347999542358773e-14,
-      "sigma_mt_integral_cm2": 1.0519017497955248e-14,
-      "sigma_mt_relative_error_dcs_vs_integral": -0.016257978050679966,
+      "sigma_mt_integral_cm2": 1.0518954489138783e-14,
+      "sigma_mt_relative_error_dcs_vs_integral": -0.01625208540986911,
       "sigma_t_dcs_cm2": 1.9763127997166602e-14,
       "sigma_t_integral_cm2": 2.050113357336782e-14,
       "sigma_t_relative_error_dcs_vs_integral": -0.03599828143941919,
@@ -153,15 +153,15 @@
       "sigma_vi_integral_cm2": 3.08391986351828e-15,
       "sigma_vi_relative_error_dcs_vs_integral": -0.019664543036935433,
       "transport_ratio_dcs": 0.5236013015673604,
-      "transport_ratio_integral": 0.51309443257421,
-      "transport_ratio_relative_error": 0.020477456635881186
+      "transport_ratio_integral": 0.513091359143356,
+      "transport_ratio_relative_error": 0.020483569322920392
     },
     {
       "energy_cm_ev": 0.631,
       "energy_lab_ev": 1.262,
       "sigma_mt_dcs_cm2": 1.0281404710614087e-14,
-      "sigma_mt_integral_cm2": 1.0257267966513312e-14,
-      "sigma_mt_relative_error_dcs_vs_integral": 0.002353135764764369,
+      "sigma_mt_integral_cm2": 1.0257241747996003e-14,
+      "sigma_mt_relative_error_dcs_vs_integral": 0.002355697877824081,
       "sigma_t_dcs_cm2": 1.9359274763130964e-14,
       "sigma_t_integral_cm2": 1.9562528250439574e-14,
       "sigma_t_relative_error_dcs_vs_integral": -0.0103899396185686,
@@ -169,15 +169,15 @@
       "sigma_vi_integral_cm2": 2.9189779217561006e-15,
       "sigma_vi_relative_error_dcs_vs_integral": -0.044607215032393066,
       "transport_ratio_dcs": 0.5310841876264213,
-      "transport_ratio_integral": 0.5243324295919076,
-      "transport_ratio_relative_error": 0.012876865235607493
+      "transport_ratio_integral": 0.5243310893501468,
+      "transport_ratio_relative_error": 0.01287945424835324
     },
     {
       "energy_cm_ev": 0.7943,
       "energy_lab_ev": 1.5886,
       "sigma_mt_dcs_cm2": 9.788127401435583e-15,
-      "sigma_mt_integral_cm2": 9.998418605743807e-15,
-      "sigma_mt_relative_error_dcs_vs_integral": -0.021032446489829715,
+      "sigma_mt_integral_cm2": 9.998409670264189e-15,
+      "sigma_mt_relative_error_dcs_vs_integral": -0.02103157159623059,
       "sigma_t_dcs_cm2": 1.867424389625891e-14,
       "sigma_t_integral_cm2": 1.867815732451921e-14,
       "sigma_t_relative_error_dcs_vs_integral": -0.00020951896872412057,
@@ -185,8 +185,8 @@
       "sigma_vi_integral_cm2": 2.766489994047674e-15,
       "sigma_vi_relative_error_dcs_vs_integral": -0.07410754879900527,
       "transport_ratio_dcs": 0.5241512028980451,
-      "transport_ratio_integral": 0.5353000529992684,
-      "transport_ratio_relative_error": -0.020827291233686096
+      "transport_ratio_integral": 0.5352995746073445,
+      "transport_ratio_relative_error": -0.020826416156741745
     },
     {
       "energy_cm_ev": 1.0,
@@ -208,8 +208,8 @@
       "energy_cm_ev": 1.259,
       "energy_lab_ev": 2.518,
       "sigma_mt_dcs_cm2": 9.771194747788888e-15,
-      "sigma_mt_integral_cm2": 9.49179279928134e-15,
-      "sigma_mt_relative_error_dcs_vs_integral": 0.029436161789025084,
+      "sigma_mt_integral_cm2": 9.491797650428552e-15,
+      "sigma_mt_relative_error_dcs_vs_integral": 0.029435635656194226,
       "sigma_t_dcs_cm2": 1.7385798519856044e-14,
       "sigma_t_integral_cm2": 1.7061183926801338e-14,
       "sigma_t_relative_error_dcs_vs_integral": 0.019026498656096846,
@@ -217,15 +217,15 @@
       "sigma_vi_integral_cm2": 2.419851494524624e-15,
       "sigma_vi_relative_error_dcs_vs_integral": 0.06926397444961441,
       "transport_ratio_dcs": 0.5620216256750797,
-      "transport_ratio_integral": 0.5563384604494372,
-      "transport_ratio_relative_error": 0.010215301708696112
+      "transport_ratio_integral": 0.5563387447876891,
+      "transport_ratio_relative_error": 0.010214785399422999
     },
     {
       "energy_cm_ev": 1.585,
       "energy_lab_ev": 3.17,
       "sigma_mt_dcs_cm2": 9.610955070542529e-15,
-      "sigma_mt_integral_cm2": 9.244335346473685e-15,
-      "sigma_mt_relative_error_dcs_vs_integral": 0.03965885164569394,
+      "sigma_mt_integral_cm2": 9.244342875741062e-15,
+      "sigma_mt_relative_error_dcs_vs_integral": 0.03965800487166349,
       "sigma_t_dcs_cm2": 1.6629830405407493e-14,
       "sigma_t_integral_cm2": 1.6325234097473144e-14,
       "sigma_t_relative_error_dcs_vs_integral": 0.018658005521739796,
@@ -233,15 +233,15 @@
       "sigma_vi_integral_cm2": 2.1758829381004143e-15,
       "sigma_vi_relative_error_dcs_vs_integral": 0.048159734735710336,
       "transport_ratio_dcs": 0.5779346413188526,
-      "transport_ratio_integral": 0.5662605075846688,
-      "transport_ratio_relative_error": 0.020616189152901976
+      "transport_ratio_integral": 0.5662609687889206,
+      "transport_ratio_relative_error": 0.020615357888605468
     },
     {
       "energy_cm_ev": 1.995,
       "energy_lab_ev": 3.99,
       "sigma_mt_dcs_cm2": 9.480106711081657e-15,
-      "sigma_mt_integral_cm2": 9.000768940053515e-15,
-      "sigma_mt_relative_error_dcs_vs_integral": 0.05325520233000147,
+      "sigma_mt_integral_cm2": 9.000777922327984e-15,
+      "sigma_mt_relative_error_dcs_vs_integral": 0.053254151240040626,
       "sigma_t_dcs_cm2": 1.5942848052924092e-14,
       "sigma_t_integral_cm2": 1.5635437026511142e-14,
       "sigma_t_relative_error_dcs_vs_integral": 0.01966117262291478,
@@ -249,15 +249,15 @@
       "sigma_vi_integral_cm2": 1.8738864671539772e-15,
       "sigma_vi_relative_error_dcs_vs_integral": 0.009017313888204592,
       "transport_ratio_dcs": 0.5946306882942977,
-      "transport_ratio_integral": 0.5756646855979776,
-      "transport_ratio_relative_error": 0.032946267455365996
+      "transport_ratio_integral": 0.5756652600798071,
+      "transport_ratio_relative_error": 0.03294523663258975
     },
     {
       "energy_cm_ev": 2.512,
       "energy_lab_ev": 5.024,
       "sigma_mt_dcs_cm2": 9.288427480926096e-15,
-      "sigma_mt_integral_cm2": 8.760275646376258e-15,
-      "sigma_mt_relative_error_dcs_vs_integral": 0.06028940821837159,
+      "sigma_mt_integral_cm2": 8.760285364929504e-15,
+      "sigma_mt_relative_error_dcs_vs_integral": 0.060288231946293624,
       "sigma_t_dcs_cm2": 1.5227992447781176e-14,
       "sigma_t_integral_cm2": 1.498806350097267e-14,
       "sigma_t_relative_error_dcs_vs_integral": 0.01600800175372452,
@@ -265,15 +265,15 @@
       "sigma_vi_integral_cm2": 1.544218278392664e-15,
       "sigma_vi_relative_error_dcs_vs_integral": -0.01677916136902413,
       "transport_ratio_dcs": 0.6099574525517633,
-      "transport_ratio_integral": 0.5844834888648389,
-      "transport_ratio_relative_error": 0.04358371822683793
+      "transport_ratio_integral": 0.5844841372843792,
+      "transport_ratio_relative_error": 0.04358256048784792
     },
     {
       "energy_cm_ev": 3.162,
       "energy_lab_ev": 6.324,
       "sigma_mt_dcs_cm2": 9.41012834903137e-15,
-      "sigma_mt_integral_cm2": 8.523362324058233e-15,
-      "sigma_mt_relative_error_dcs_vs_integral": 0.10403946133676989,
+      "sigma_mt_integral_cm2": 8.52337234480326e-15,
+      "sigma_mt_relative_error_dcs_vs_integral": 0.10403816334138782,
       "sigma_t_dcs_cm2": 1.5179022292829457e-14,
       "sigma_t_integral_cm2": 1.438302768858968e-14,
       "sigma_t_relative_error_dcs_vs_integral": 0.0553426317096819,
@@ -281,15 +281,15 @@
       "sigma_vi_integral_cm2": 1.2342558951060073e-15,
       "sigma_vi_relative_error_dcs_vs_integral": -0.02489854828046012,
       "transport_ratio_dcs": 0.6199429823274387,
-      "transport_ratio_integral": 0.5925986175233448,
-      "transport_ratio_relative_error": 0.046143146466278706
+      "transport_ratio_integral": 0.5925993142295768,
+      "transport_ratio_relative_error": 0.04614191653834543
     },
     {
       "energy_cm_ev": 3.981,
       "energy_lab_ev": 7.962,
       "sigma_mt_dcs_cm2": 8.79709550066853e-15,
-      "sigma_mt_integral_cm2": 8.289295198146258e-15,
-      "sigma_mt_relative_error_dcs_vs_integral": 0.06125976821718582,
+      "sigma_mt_integral_cm2": 8.28930525602959e-15,
+      "sigma_mt_relative_error_dcs_vs_integral": 0.06125848053063043,
       "sigma_t_dcs_cm2": 1.4753650071604566e-14,
       "sigma_t_integral_cm2": 1.3816921442975416e-14,
       "sigma_t_relative_error_dcs_vs_integral": 0.06779575555200013,
@@ -297,15 +297,15 @@
       "sigma_vi_integral_cm2": 9.73774746108162e-16,
       "sigma_vi_relative_error_dcs_vs_integral": 0.02511715191258368,
       "transport_ratio_dcs": 0.5962657008925374,
-      "transport_ratio_integral": 0.59993792628535,
-      "transport_ratio_relative_error": -0.006121008910955239
+      "transport_ratio_integral": 0.5999386542248822,
+      "transport_ratio_relative_error": -0.006122214840599494
     },
     {
       "energy_cm_ev": 5.012,
       "energy_lab_ev": 10.024,
       "sigma_mt_dcs_cm2": 8.487303534674051e-15,
-      "sigma_mt_integral_cm2": 8.058117536072128e-15,
-      "sigma_mt_relative_error_dcs_vs_integral": 0.053261322719688975,
+      "sigma_mt_integral_cm2": 8.058127467960953e-15,
+      "sigma_mt_relative_error_dcs_vs_integral": 0.053260024542860496,
       "sigma_t_dcs_cm2": 1.4150459056244794e-14,
       "sigma_t_integral_cm2": 1.3288321381052975e-14,
       "sigma_t_relative_error_dcs_vs_integral": 0.06487935161028613,
@@ -313,15 +313,15 @@
       "sigma_vi_integral_cm2": 7.688854410828636e-16,
       "sigma_vi_relative_error_dcs_vs_integral": -0.013903977066336837,
       "transport_ratio_dcs": 0.5997899786105163,
-      "transport_ratio_integral": 0.606405978979536,
-      "transport_ratio_relative_error": -0.010910183273840968
+      "transport_ratio_integral": 0.6064067263943929,
+      "transport_ratio_relative_error": -0.010911402357323463
     },
     {
       "energy_cm_ev": 6.31,
       "energy_lab_ev": 12.62,
       "sigma_mt_dcs_cm2": 8.270837089939884e-15,
-      "sigma_mt_integral_cm2": 7.829623113926962e-15,
-      "sigma_mt_relative_error_dcs_vs_integral": 0.05635187921473661,
+      "sigma_mt_integral_cm2": 7.829632820550516e-15,
+      "sigma_mt_relative_error_dcs_vs_integral": 0.056350569624584956,
       "sigma_t_dcs_cm2": 1.3393560190107328e-14,
       "sigma_t_integral_cm2": 1.2795131185264055e-14,
       "sigma_t_relative_error_dcs_vs_integral": 0.04677005621735808,
@@ -329,15 +329,15 @@
       "sigma_vi_integral_cm2": 6.112386451481937e-16,
       "sigma_vi_relative_error_dcs_vs_integral": -0.006380800877972659,
       "transport_ratio_dcs": 0.6175234196542336,
-      "transport_ratio_integral": 0.6119220663359991,
-      "transport_ratio_relative_error": 0.009153703758018938
+      "transport_ratio_integral": 0.6119228249545247,
+      "transport_ratio_relative_error": 0.009152452680818435
     },
     {
       "energy_cm_ev": 7.943,
       "energy_lab_ev": 15.886,
       "sigma_mt_dcs_cm2": 8.051164349025067e-15,
-      "sigma_mt_integral_cm2": 7.603784469088582e-15,
-      "sigma_mt_relative_error_dcs_vs_integral": 0.05883647567276573,
+      "sigma_mt_integral_cm2": 7.603793891988257e-15,
+      "sigma_mt_relative_error_dcs_vs_integral": 0.058835163523853984,
       "sigma_t_dcs_cm2": 1.3088915028789028e-14,
       "sigma_t_integral_cm2": 1.2335595415907428e-14,
       "sigma_t_relative_error_dcs_vs_integral": 0.06106876786102711,
@@ -345,15 +345,15 @@
       "sigma_vi_integral_cm2": 4.893974235114936e-16,
       "sigma_vi_relative_error_dcs_vs_integral": -0.000643884816138196,
       "transport_ratio_dcs": 0.6151131955029546,
-      "transport_ratio_integral": 0.6164100080068357,
-      "transport_ratio_relative_error": -0.0021038148100065435
+      "transport_ratio_integral": 0.6164107718856235,
+      "transport_ratio_relative_error": -0.0021050514394801434
     },
     {
       "energy_cm_ev": 10.0,
       "energy_lab_ev": 20.0,
       "sigma_mt_dcs_cm2": 7.883000272048955e-15,
-      "sigma_mt_integral_cm2": 7.380167413441055e-15,
-      "sigma_mt_relative_error_dcs_vs_integral": 0.06813298810703428,
+      "sigma_mt_integral_cm2": 7.38017651999792e-15,
+      "sigma_mt_relative_error_dcs_vs_integral": 0.06813167011500942,
       "sigma_t_dcs_cm2": 1.281698668836026e-14,
       "sigma_t_integral_cm2": 1.1907114634219878e-14,
       "sigma_t_relative_error_dcs_vs_integral": 0.07641415087459547,
@@ -361,15 +361,15 @@
       "sigma_vi_integral_cm2": 3.9344415301862786e-16,
       "sigma_vi_relative_error_dcs_vs_integral": 0.056967228742249354,
       "transport_ratio_dcs": 0.6150431816557864,
-      "transport_ratio_integral": 0.6198115698181975,
-      "transport_ratio_relative_error": -0.007693286790063869
+      "transport_ratio_integral": 0.6198123346178274,
+      "transport_ratio_relative_error": -0.007694511218434452
     },
     {
       "energy_cm_ev": 12.59,
       "energy_lab_ev": 25.18,
       "sigma_mt_dcs_cm2": 7.610070680956603e-15,
-      "sigma_mt_integral_cm2": 7.158742268588515e-15,
-      "sigma_mt_relative_error_dcs_vs_integral": 0.06304576913579485,
+      "sigma_mt_integral_cm2": 7.1587510433434e-15,
+      "sigma_mt_relative_error_dcs_vs_integral": 0.06304446611994763,
       "sigma_t_dcs_cm2": 1.2040221360428495e-14,
       "sigma_t_integral_cm2": 1.1507903947894333e-14,
       "sigma_t_relative_error_dcs_vs_integral": 0.04625667844851655,
@@ -377,15 +377,15 @@
       "sigma_vi_integral_cm2": 3.163924458168511e-16,
       "sigma_vi_relative_error_dcs_vs_integral": 0.0068954190965822,
       "transport_ratio_dcs": 0.6320540505981006,
-      "transport_ratio_integral": 0.6220717778843116,
-      "transport_ratio_relative_error": 0.016046818178665934
+      "transport_ratio_integral": 0.6220725403824106,
+      "transport_ratio_relative_error": 0.01604557277123031
     },
     {
       "energy_cm_ev": 15.85,
       "energy_lab_ev": 31.7,
       "sigma_mt_dcs_cm2": 7.541917975784596e-15,
-      "sigma_mt_integral_cm2": 6.939447598566439e-15,
-      "sigma_mt_relative_error_dcs_vs_integral": 0.0868182039940204,
+      "sigma_mt_integral_cm2": 6.939456037271628e-15,
+      "sigma_mt_relative_error_dcs_vs_integral": 0.08681688237192686,
       "sigma_t_dcs_cm2": 1.2105970117066613e-14,
       "sigma_t_integral_cm2": 1.1136056031084025e-14,
       "sigma_t_relative_error_dcs_vs_integral": 0.08709673184790656,
@@ -393,15 +393,15 @@
       "sigma_vi_integral_cm2": 2.5347214308801807e-16,
       "sigma_vi_relative_error_dcs_vs_integral": 0.27277773844022235,
       "transport_ratio_dcs": 0.6229916233769849,
-      "transport_ratio_integral": 0.623151282572249,
-      "transport_ratio_relative_error": -0.0002562125758693856
+      "transport_ratio_integral": 0.6231520403544625,
+      "transport_ratio_relative_error": -0.0002574283113737641
     },
     {
       "energy_cm_ev": 19.95,
       "energy_lab_ev": 39.9,
       "sigma_mt_dcs_cm2": 7.377431213583902e-15,
-      "sigma_mt_integral_cm2": 6.72230566869989e-15,
-      "sigma_mt_relative_error_dcs_vs_integral": 0.09745548286124195,
+      "sigma_mt_integral_cm2": 6.7223137745295315e-15,
+      "sigma_mt_relative_error_dcs_vs_integral": 0.09745415953902259,
       "sigma_t_dcs_cm2": 1.1382424347723433e-14,
       "sigma_t_integral_cm2": 1.0789748709947795e-14,
       "sigma_t_relative_error_dcs_vs_integral": 0.054929512605720765,
@@ -409,15 +409,15 @@
       "sigma_vi_integral_cm2": 2.0151549486807647e-16,
       "sigma_vi_relative_error_dcs_vs_integral": 0.47532936395055825,
       "transport_ratio_dcs": 0.6481423454450143,
-      "transport_ratio_integral": 0.6230270833371814,
-      "transport_ratio_relative_error": 0.04031166987686241
+      "transport_ratio_integral": 0.6230278345900474,
+      "transport_ratio_relative_error": 0.040310415459194004
     },
     {
       "energy_cm_ev": 25.12,
       "energy_lab_ev": 50.24,
       "sigma_mt_dcs_cm2": 7.213772610441113e-15,
-      "sigma_mt_integral_cm2": 6.506655001772627e-15,
-      "sigma_mt_relative_error_dcs_vs_integral": 0.10867605681811066,
+      "sigma_mt_integral_cm2": 6.5066627816668215e-15,
+      "sigma_mt_relative_error_dcs_vs_integral": 0.10867473119502136,
       "sigma_t_dcs_cm2": 1.1340624071104704e-14,
       "sigma_t_integral_cm2": 1.0466100267094501e-14,
       "sigma_t_relative_error_dcs_vs_integral": 0.08355775137753185,
@@ -425,15 +425,15 @@
       "sigma_vi_integral_cm2": 1.5826466286550424e-16,
       "sigma_vi_relative_error_dcs_vs_integral": 0.7547999493234137,
       "transport_ratio_dcs": 0.6361001445080448,
-      "transport_ratio_integral": 0.6216885789093384,
-      "transport_ratio_relative_error": 0.023181325968685718
+      "transport_ratio_integral": 0.6216893222515572,
+      "transport_ratio_relative_error": 0.023180102570036443
     },
     {
       "energy_cm_ev": 31.62,
       "energy_lab_ev": 63.24,
       "sigma_mt_dcs_cm2": 7.075201386269068e-15,
-      "sigma_mt_integral_cm2": 6.293032493073325e-15,
-      "sigma_mt_relative_error_dcs_vs_integral": 0.12429125291450016,
+      "sigma_mt_integral_cm2": 6.293039957803402e-15,
+      "sigma_mt_relative_error_dcs_vs_integral": 0.12428991929342215,
       "sigma_t_dcs_cm2": 1.0840391148814636e-14,
       "sigma_t_integral_cm2": 1.0164053472957318e-14,
       "sigma_t_relative_error_dcs_vs_integral": 0.0665421209812398,
@@ -441,15 +441,15 @@
       "sigma_vi_integral_cm2": 1.2239514998741827e-16,
       "sigma_vi_relative_error_dcs_vs_integral": 1.2831683595079464,
       "transport_ratio_dcs": 0.6526703039717087,
-      "transport_ratio_integral": 0.6191459450520101,
-      "transport_ratio_relative_error": 0.05414613337551999
+      "transport_ratio_integral": 0.6191466794765286,
+      "transport_ratio_relative_error": 0.054144882959759055
     },
     {
       "energy_cm_ev": 39.81,
       "energy_lab_ev": 79.62,
       "sigma_mt_dcs_cm2": 7.690978482681735e-15,
-      "sigma_mt_integral_cm2": 6.080863572726314e-15,
-      "sigma_mt_relative_error_dcs_vs_integral": 0.2647839226614217,
+      "sigma_mt_integral_cm2": 6.080870734040015e-15,
+      "sigma_mt_relative_error_dcs_vs_integral": 0.2647824331519697,
       "sigma_t_dcs_cm2": 1.0594863613559694e-14,
       "sigma_t_integral_cm2": 9.880889127669525e-15,
       "sigma_t_relative_error_dcs_vs_integral": 0.07225812137602272,
@@ -457,15 +457,15 @@
       "sigma_vi_integral_cm2": 9.279947696357487e-17,
       "sigma_vi_relative_error_dcs_vs_integral": -0.005645791563469449,
       "transport_ratio_dcs": 0.725915760995596,
-      "transport_ratio_integral": 0.6154166385389375,
-      "transport_ratio_relative_error": 0.17955173054630902
+      "transport_ratio_integral": 0.615417363303036,
+      "transport_ratio_relative_error": 0.17955034141301884
     },
     {
       "energy_cm_ev": 50.12,
       "energy_lab_ev": 100.24,
       "sigma_mt_dcs_cm2": 7.441746430253318e-15,
-      "sigma_mt_integral_cm2": 5.870270648970067e-15,
-      "sigma_mt_relative_error_dcs_vs_integral": 0.2677007373687217,
+      "sigma_mt_integral_cm2": 5.870277519820532e-15,
+      "sigma_mt_relative_error_dcs_vs_integral": 0.2676992535918181,
       "sigma_t_dcs_cm2": 1.053329010537573e-14,
       "sigma_t_integral_cm2": 9.614879028710446e-15,
       "sigma_t_relative_error_dcs_vs_integral": 0.09551977449980065,
@@ -473,15 +473,15 @@
       "sigma_vi_integral_cm2": 6.877392576039786e-17,
       "sigma_vi_relative_error_dcs_vs_integral": -0.007782180970212882,
       "transport_ratio_dcs": 0.7064978136750811,
-      "transport_ratio_integral": 0.6105402503184059,
-      "transport_ratio_relative_error": 0.1571682838381776
+      "transport_ratio_integral": 0.610540964924429,
+      "transport_ratio_relative_error": 0.1571669294336857
     },
     {
       "energy_cm_ev": 63.1,
       "energy_lab_ev": 126.2,
       "sigma_mt_dcs_cm2": 7.142464623782007e-15,
-      "sigma_mt_integral_cm2": 5.661146514615366e-15,
-      "sigma_mt_relative_error_dcs_vs_integral": 0.26166397660656293,
+      "sigma_mt_integral_cm2": 5.661153108274552e-15,
+      "sigma_mt_relative_error_dcs_vs_integral": 0.2616625071210874,
       "sigma_t_dcs_cm2": 9.923684475057248e-15,
       "sigma_t_integral_cm2": 9.363958977767348e-15,
       "sigma_t_relative_error_dcs_vs_integral": 0.059774449954217435,
@@ -489,15 +489,15 @@
       "sigma_vi_integral_cm2": 4.9759622122859376e-17,
       "sigma_vi_relative_error_dcs_vs_integral": -0.003537922633903401,
       "transport_ratio_dcs": 0.7197391897872493,
-      "transport_ratio_integral": 0.6045676329911854,
-      "transport_ratio_relative_error": 0.19050235327061094
+      "transport_ratio_integral": 0.6045683371441192,
+      "transport_ratio_relative_error": 0.1905009666685129
     },
     {
       "energy_cm_ev": 79.43,
       "energy_lab_ev": 158.86,
       "sigma_mt_dcs_cm2": 6.945662543877098e-15,
-      "sigma_mt_integral_cm2": 5.453542354888239e-15,
-      "sigma_mt_relative_error_dcs_vs_integral": 0.2736056845054864,
+      "sigma_mt_integral_cm2": 5.4535486847811265e-15,
+      "sigma_mt_relative_error_dcs_vs_integral": 0.27360420624096005,
       "sigma_t_dcs_cm2": 9.303242234596491e-15,
       "sigma_t_integral_cm2": 9.126241530750403e-15,
       "sigma_t_relative_error_dcs_vs_integral": 0.0193946986006992,
@@ -505,15 +505,15 @@
       "sigma_vi_integral_cm2": 3.53329343016288e-17,
       "sigma_vi_relative_error_dcs_vs_integral": 0.25773574945888944,
       "transport_ratio_dcs": 0.74658515480204,
-      "transport_ratio_integral": 0.5975671733552972,
-      "transport_ratio_relative_error": 0.24937444372992834
+      "transport_ratio_integral": 0.59756786694782,
+      "transport_ratio_relative_error": 0.24937299359042053
     },
     {
       "energy_cm_ev": 100.0,
       "energy_lab_ev": 200.0,
       "sigma_mt_dcs_cm2": 6.824613405205452e-15,
-      "sigma_mt_integral_cm2": 5.2471292188219055e-15,
-      "sigma_mt_relative_error_dcs_vs_integral": 0.3006375716315457,
+      "sigma_mt_integral_cm2": 5.2471352978021084e-15,
+      "sigma_mt_relative_error_dcs_vs_integral": 0.3006360647997983,
       "sigma_t_dcs_cm2": 9.189519001615928e-15,
       "sigma_t_integral_cm2": 8.899401806211047e-15,
       "sigma_t_relative_error_dcs_vs_integral": 0.0325996287977921,
@@ -521,8 +521,8 @@
       "sigma_vi_integral_cm2": 2.5129705680129867e-17,
       "sigma_vi_relative_error_dcs_vs_integral": 0.6021172457380788,
       "transport_ratio_dcs": 0.7426518628456377,
-      "transport_ratio_integral": 0.5896047097412596,
-      "transport_ratio_relative_error": 0.2595758659586367
+      "transport_ratio_integral": 0.5896053928186547,
+      "transport_ratio_relative_error": 0.2595744066982366
     }
   ],
   "xi_points": 1000

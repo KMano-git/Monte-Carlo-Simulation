@@ -37,6 +37,40 @@ def evaluate_model_cm2(model, energy_cm_grid: np.ndarray, bohr_area_cm2: float) 
     )
 
 
+def serialize_shared_coefficients(
+    fits_by_channel: dict[str, list[object]],
+) -> dict[str, dict[str, dict[str, object]]]:
+    elastic_by_energy = {float(fit.energy_ev): fit for fit in fits_by_channel["Elastic"]}
+    spin_exchange_by_energy = {
+        float(fit.energy_ev): fit for fit in fits_by_channel["Spin Exchange"]
+    }
+    energies = sorted(elastic_by_energy)
+    if energies != sorted(spin_exchange_by_energy):
+        raise ValueError("Elastic and spin-exchange DCS energies do not match.")
+
+    serialized: dict[str, dict[str, dict[str, object]]] = {}
+    for energy in energies:
+        elastic_fit = elastic_by_energy[energy]
+        spin_exchange_fit = spin_exchange_by_energy[energy]
+        serialized[f"{energy:.4f}"] = {
+            "elastic": {
+                "a": list(elastic_fit.a_values),
+                "b": list(elastic_fit.b_values),
+                "A": float(elastic_fit.A),
+                "B": float(elastic_fit.B),
+                "C": float(elastic_fit.C),
+            },
+            "spin_exchange": {
+                "a": list(spin_exchange_fit.a_values),
+                "b": list(spin_exchange_fit.b_values),
+                "A": float(spin_exchange_fit.A),
+                "B": float(spin_exchange_fit.B),
+                "C": float(spin_exchange_fit.C),
+            },
+        }
+    return serialized
+
+
 def parse_args() -> argparse.Namespace:
     this_dir = Path(__file__).resolve().parent
     el_data_dir = this_dir.parent
@@ -94,7 +128,6 @@ def main() -> None:
     args = parse_args()
     this_dir = Path(__file__).resolve().parent
     el_data_dir = this_dir.parent
-    repo_dir = el_data_dir.parent
     sys.path.insert(0, str(el_data_dir))
     sys.path.insert(0, str(this_dir))
 
@@ -112,7 +145,6 @@ def main() -> None:
         build_tabulated_inverse_cdf,
         interpolate_inverse_cdf_by_energy,
         parse_krstic_dcs_markdown,
-        serialize_fits,
     )
 
     template_path = Path(args.template_cdf)
@@ -146,15 +178,7 @@ def main() -> None:
     elastic_fits = fits_by_channel["Elastic"]
     elastic_fit_by_energy = {float(fit.energy_ev): fit for fit in elastic_fits}
     coeff_json_out.write_text(
-        json.dumps(
-            serialize_fits(
-                fits_by_channel,
-                source_markdown=str(markdown_path.relative_to(repo_dir)),
-            ),
-            indent=2,
-            sort_keys=True,
-        )
-        + "\n",
+        json.dumps(serialize_shared_coefficients(fits_by_channel), indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
 
@@ -296,7 +320,7 @@ def main() -> None:
     )
 
     validation = {
-        "source_coeff_markdown": str(markdown_path.relative_to(repo_dir)),
+        "source_coeff_markdown": str(markdown_path.resolve()),
         "source_coeff_json": coeff_json_out.name,
         "cross_section_source": "Krstic integral fit (elastic total)",
         "sigma_momentum_source": "Krstic integral fit (momentum transfer)",
