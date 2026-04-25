@@ -32,15 +32,17 @@
   - `DpD_fit_memo_v2.md` の Section 2 / Section 12 を読み、Krstic integral fit 系の JSON / CSV を再生成する
 - `build_krstic_angle_cdf.py`
   - Krstic DCS から `cross_section`, `scattering_angle`, `reaction_rate`, `I_1_x`, `sigv_max` をまとめて再構成する full rebuild スクリプト
+  - pure-elastic では elastic-total と spin-exchange の `p(theta,E)` を runtime energy へ DCS-first で補間し、差を取ってから積分量と CDF を作る
 - `Krstic/build_krstic_total_elastic_cdf.py`
   - `total elastic` 用の正規 builder
-  - `sigma_t` と `sigma_mt` は Krstic integral fit を優先し、`scattering_angle` は elastic-total DCS から再構成する
+  - `sigma_t` と `sigma_mt`、I-kernel 系は Krstic integral fit を優先する
+  - `scattering_angle` は DCS-first で作る: `p(theta,E)=2*pi*sin(theta)*d sigma/d Omega` を runtime energy へ補間し、それを積分して CDF / inverse-CDF にする
 - `calc_I_kernel.py`
   - 比較用の補助スクリプト
-  - Krstic DCS から `sigma_mt(E_cm)` を作り、I-kernel 系だけを再計算する
+  - Krstic pure DCS-first から `sigma_mt(E_cm)` を作り、I-kernel 系だけを再計算する
   - `cross_section`, `scattering_angle`, `angle_min` は入力 CDF から保持し、`reaction_rate`, `I_1_0`, `I_1_1_up`, `I_1_2_up2`, `sigv_max` だけを更新する
 - `plot_cdf.py`
-  - 既定では `Krstic/krstic_dd_pure_dcs_compat.cdf` を図示する
+  - 既定では `Krstic/krstic_dd_total_elastic_integral_priority.cdf` を図示する
 - `plot_cdf_test.py`
   - 既定ではルートの `dd_00_elastic_pure_el_angle_fixed.cdf` を図示する
 - `debug_krstic_scattering_angle.py`
@@ -63,10 +65,11 @@
 
 - `Krstic/krstic_dd_total_elastic_integral_priority.cdf`
   - `total elastic` の正規データ
-  - `sigma_t` と `sigma_mt` は Krstic integral fit を使い、`scattering_angle` は elastic-total DCS から再構成する
+  - `sigma_t` と `sigma_mt`、I-kernel 系は Krstic integral fit を使う
+  - `scattering_angle` は elastic-total DCS-first で再構成する
 - `Krstic/krstic_dd_pure_dcs_compat.cdf`
   - `pure elastic` の正規データ
-  - pure-elastic DCS から `cross_section`, `scattering_angle`, `reaction_rate`, `I_1_x`, `sigv_max` を再構成した full rebuild
+  - elastic-total / spin-exchange DCS を runtime energy へ DCS-first で補間し、`g_pure = g_el_total - g_se` から `cross_section`, `scattering_angle`, `reaction_rate`, `I_1_x`, `sigv_max` を再構成した full rebuild
 - `Krstic/krstic_dd_dcs_coeffs.json`
   - Section 11 の手動入力から作る共通 DCS 係数 JSON
   - total / pure の両 workflow で共有する
@@ -102,5 +105,7 @@ python3 calc_I_kernel.py
 
 - `calc_I_kernel.py` は full rebuild ではありません。比較用の I-kernel 差し替え器です。
 - Krstic の DCS fit 入力は `E_cm` です。D + D では `E_cm = 0.5 * E_lab` を使います。
+- `total elastic` の正式 CDF は、角度を DCS-first、積分量を integral-fit-first として分けます。DCS 由来の角度CDFから戻した transport ratio と integral fit の ratio が一致しない場合、その差は validation に残します。
+- `pure elastic` の正式 CDF は、独立した pure の integral-fit が揃っていないため DCS-first full rebuild とします。elastic-total / spin-exchange の DCS を先に runtime energy へ補間し、差を取った pure kernel から積分量と角度 CDF を作ります。
 - `g_pure = g_el_total - g_se` は、現行の手動入力 DCS 係数でも局所的に負になる点が残っています。これは raw OCR をそのまま使っているという意味ではなく、pure 再構成の整合性確認がまだ必要だという意味です。`build_krstic_angle_cdf.py` と `calc_I_kernel.py` は `negative-pure-policy` で扱いを切り替えます。
 - より詳しい Krstic 側の変更履歴と生成物の説明は `Krstic/README.md` を参照してください。

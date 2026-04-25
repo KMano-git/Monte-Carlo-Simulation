@@ -467,6 +467,289 @@ def build_tabulated_observables(
     }
 
 
+def _energy_bracket(
+    sorted_slices: list[EnergySlice],
+    target_energy_cm_ev: float,
+) -> tuple[EnergySlice, EnergySlice, float]:
+    energies = np.array([item.energy_cm_ev for item in sorted_slices], dtype=float)
+    target = float(target_energy_cm_ev)
+    if target <= 0.0:
+        raise ValueError("DCS energy interpolation requires positive energies.")
+
+    clamped_target = float(np.clip(target, energies[0], energies[-1]))
+    upper = int(np.searchsorted(energies, clamped_target, side="left"))
+    if upper <= 0:
+        return sorted_slices[0], sorted_slices[0], clamped_target
+    if upper >= energies.size:
+        return sorted_slices[-1], sorted_slices[-1], clamped_target
+    if math.isclose(
+        float(energies[upper]),
+        clamped_target,
+        rel_tol=0.0,
+        abs_tol=1.0e-12 * max(1.0, clamped_target),
+    ):
+        return sorted_slices[upper], sorted_slices[upper], clamped_target
+    return sorted_slices[upper - 1], sorted_slices[upper], clamped_target
+
+
+def _theta_grid_for_slices(
+    energy_slices: tuple[EnergySlice, ...],
+    *,
+    theta_grid: np.ndarray | None,
+    theta_min: float,
+    theta_max: float,
+    theta_split: float,
+    log_points: int,
+    linear_points: int,
+    pole_margin: float,
+) -> tuple[np.ndarray, float, np.ndarray]:
+    pole_thetas = np.concatenate(
+        [
+            channel_pole_thetas(channel, theta_min=theta_min, theta_max=theta_max)
+            for energy_slice in energy_slices
+            for channel in (energy_slice.elastic, energy_slice.spin_exchange)
+        ]
+    )
+    theta_min_used = float(theta_min)
+    if pole_thetas.size:
+        theta_min_used = max(theta_min_used, float(np.max(pole_thetas) * (1.0 + pole_margin)))
+    if theta_min_used >= theta_max:
+        source_energies = ", ".join(f"{item.energy_cm_ev:.6g}" for item in energy_slices)
+        raise ValueError(f"No valid theta interval remains for E_cm bracket [{source_energies}] eV.")
+
+    if theta_grid is None:
+        theta_split_used = max(theta_split, theta_min_used * 1.01)
+        if theta_split_used >= theta_max:
+            theta_split_used = 0.5 * (theta_min_used + theta_max)
+        theta_values = build_theta_grid(
+            theta_min=theta_min_used,
+            theta_split=theta_split_used,
+            theta_max=theta_max,
+            log_points=log_points,
+            linear_points=linear_points,
+        )
+    else:
+        theta_values = np.asarray(theta_grid, dtype=float)
+        theta_values = theta_values[(theta_values >= theta_min_used) & (theta_values <= theta_max)]
+        if theta_values.size < 4:
+            source_energies = ", ".join(f"{item.energy_cm_ev:.6g}" for item in energy_slices)
+            raise ValueError(
+                f"Theta grid became too short for E_cm bracket [{source_energies}] eV."
+            )
+    return theta_values, theta_min_used, pole_thetas
+
+
+def _interpolate_channel_kernel_from_bracket(
+    low_slice: EnergySlice,
+    high_slice: EnergySlice,
+    channel_name: str,
+    theta_values: np.ndarray,
+    clamped_energy_cm_ev: float,
+    *,
+    exponent_clip: float,
+) -> np.ndarray:
+    low_coeffs = getattr(low_slice, channel_name)
+    low_kernel = evaluate_channel_kernel(
+        theta_values,
+        low_coeffs,
+        exponent_clip=exponent_clip,
+    )
+    if low_slice.energy_cm_ev == high_slice.energy_cm_ev:
+        return low_kernel
+
+    high_coeffs = getattr(high_slice, channel_name)
+    high_kernel = evaluate_channel_kernel(
+        theta_values,
+        high_coeffs,
+        exponent_clip=exponent_clip,
+    )
+    if np.any(low_kernel <= 0.0) or np.any(high_kernel <= 0.0):
+        raise ValueError("Log-kernel interpolation requires strictly positive channel kernels.")
+
+    log_e0 = math.log(low_slice.energy_cm_ev)
+    log_e1 = math.log(high_slice.energy_cm_ev)
+    weight = (math.log(clamped_energy_cm_ev) - log_e0) / (log_e1 - log_e0)
+    return np.exp((1.0 - weight) * np.log(low_kernel) + weight * np.log(high_kernel))
+
+
+def _observables_from_pure_kernel(
+    *,
+    energy_cm_ev: float,
+    clamped_energy_cm_ev: float,
+    low_slice: EnergySlice,
+    high_slice: EnergySlice,
+    theta_values: np.ndarray,
+    theta_min_used: float,
+    pole_thetas: np.ndarray,
+    g_elastic_total: np.ndarray,
+    g_spin_exchange: np.ndarray,
+    prob_axis: np.ndarray,
+    negative_policy: str,
+    negative_rel_tol: float,
+) -> tuple[dict[str, float | list[float]], np.ndarray]:
+    g_pure, negative_diag = _effective_pure_kernel(
+        g_elastic_total,
+        g_spin_exchange,
+        energy_cm_ev=energy_cm_ev,
+        negative_policy=negative_policy,
+        negative_rel_tol=negative_rel_tol,
+    )
+
+    sigma_t_elastic_total_au = float(integrate.simpson(g_elastic_total, x=theta_values))
+    sigma_t_spin_exchange_au = float(integrate.simpson(g_spin_exchange, x=theta_values))
+    sigma_mt_elastic_total_au = float(
+        integrate.simpson((1.0 - np.cos(theta_values)) * g_elastic_total, x=theta_values)
+    )
+    sigma_vi_elastic_total_au = float(
+        integrate.simpson(np.sin(theta_values) ** 2 * g_elastic_total, x=theta_values)
+    )
+    sigma_t_pure_au = float(integrate.simpson(g_pure, x=theta_values))
+    sigma_mt_pure_au = float(
+        integrate.simpson((1.0 - np.cos(theta_values)) * g_pure, x=theta_values)
+    )
+    sigma_vi_pure_au = float(
+        integrate.simpson(np.sin(theta_values) ** 2 * g_pure, x=theta_values)
+    )
+    if sigma_t_pure_au <= 0.0:
+        raise ValueError(
+            f"Non-positive pure-elastic total cross section at E_cm={energy_cm_ev:.6g} eV."
+        )
+
+    cumulative = integrate.cumulative_trapezoid(g_pure, theta_values, initial=0.0)
+    cumulative = np.maximum.accumulate(cumulative)
+    cumulative /= cumulative[-1]
+    unique_cdf, unique_indices = np.unique(cumulative, return_index=True)
+    theta_support = theta_values[unique_indices]
+    if unique_cdf[0] > 0.0:
+        unique_cdf = np.insert(unique_cdf, 0, 0.0)
+        theta_support = np.insert(theta_support, 0, theta_min_used)
+    if unique_cdf[-1] < 1.0:
+        unique_cdf = np.append(unique_cdf, 1.0)
+        theta_support = np.append(theta_support, theta_values[-1])
+
+    prob = np.asarray(prob_axis, dtype=float)
+    inverse_cdf = np.interp(prob, unique_cdf, theta_support)
+    inverse_cdf[0] = 0.0
+    inverse_cdf[-1] = math.pi
+    transport_ratio_from_cdf = float(integrate.simpson(1.0 - np.cos(inverse_cdf), x=prob))
+
+    row: dict[str, float | list[float]] = {
+        "energy_cm_ev": float(energy_cm_ev),
+        "energy_lab_ev": 2.0 * float(energy_cm_ev),
+        "interpolation_energy_cm_ev": float(clamped_energy_cm_ev),
+        "lower_source_energy_cm_ev": float(low_slice.energy_cm_ev),
+        "upper_source_energy_cm_ev": float(high_slice.energy_cm_ev),
+        "theta_min_used_rad": float(theta_min_used),
+        "pole_thetas_rad": [float(value) for value in pole_thetas],
+        "sigma_t_elastic_total_cm2": sigma_t_elastic_total_au * BOHR_AREA_CM2,
+        "sigma_t_spin_exchange_cm2": sigma_t_spin_exchange_au * BOHR_AREA_CM2,
+        "sigma_mt_elastic_total_cm2": sigma_mt_elastic_total_au * BOHR_AREA_CM2,
+        "sigma_vi_elastic_total_cm2": sigma_vi_elastic_total_au * BOHR_AREA_CM2,
+        "sigma_t_pure_cm2": sigma_t_pure_au * BOHR_AREA_CM2,
+        "sigma_mt_pure_cm2": sigma_mt_pure_au * BOHR_AREA_CM2,
+        "sigma_vi_pure_cm2": sigma_vi_pure_au * BOHR_AREA_CM2,
+        "transport_ratio_pure": sigma_mt_pure_au / sigma_t_pure_au,
+        "transport_ratio_from_cdf": transport_ratio_from_cdf,
+        **negative_diag,
+    }
+    return row, inverse_cdf
+
+
+def build_pure_dcs_first_observables_by_energy(
+    energy_slices: list[EnergySlice],
+    prob_axis: np.ndarray,
+    runtime_energy_cm_ev: np.ndarray,
+    *,
+    theta_grid: np.ndarray | None = None,
+    theta_min: float = DEFAULT_THETA_MIN_RAD,
+    theta_max: float = DEFAULT_THETA_MAX_RAD,
+    theta_split: float = DEFAULT_THETA_SPLIT_RAD,
+    log_points: int = DEFAULT_LOG_POINTS,
+    linear_points: int = DEFAULT_LINEAR_POINTS,
+    pole_margin: float = DEFAULT_POLE_MARGIN,
+    negative_policy: str = "assert",
+    negative_rel_tol: float = DEFAULT_NEGATIVE_REL_TOL,
+    exponent_clip: float = 700.0,
+) -> dict[str, object]:
+    """Build pure-elastic observables after interpolating DCS kernels in energy."""
+    if not energy_slices:
+        raise ValueError("At least one DCS energy slice is required.")
+    sorted_slices = sorted(energy_slices, key=lambda item: item.energy_cm_ev)
+    runtime_energy_values = np.asarray(runtime_energy_cm_ev, dtype=float)
+    if np.any(runtime_energy_values <= 0.0):
+        raise ValueError("DCS energy interpolation requires positive runtime energies.")
+
+    rows: list[dict[str, float | list[float]]] = []
+    inverse_rows: list[np.ndarray] = []
+    for energy_cm_ev in runtime_energy_values:
+        low_slice, high_slice, clamped_energy = _energy_bracket(
+            sorted_slices,
+            float(energy_cm_ev),
+        )
+        bracket_slices = (
+            (low_slice,) if low_slice.energy_cm_ev == high_slice.energy_cm_ev else (low_slice, high_slice)
+        )
+        theta_values, theta_min_used, pole_thetas = _theta_grid_for_slices(
+            bracket_slices,
+            theta_grid=theta_grid,
+            theta_min=theta_min,
+            theta_max=theta_max,
+            theta_split=theta_split,
+            log_points=log_points,
+            linear_points=linear_points,
+            pole_margin=pole_margin,
+        )
+        g_elastic_total = _interpolate_channel_kernel_from_bracket(
+            low_slice,
+            high_slice,
+            "elastic",
+            theta_values,
+            clamped_energy,
+            exponent_clip=exponent_clip,
+        )
+        g_spin_exchange = _interpolate_channel_kernel_from_bracket(
+            low_slice,
+            high_slice,
+            "spin_exchange",
+            theta_values,
+            clamped_energy,
+            exponent_clip=exponent_clip,
+        )
+        row, inverse_cdf = _observables_from_pure_kernel(
+            energy_cm_ev=float(energy_cm_ev),
+            clamped_energy_cm_ev=clamped_energy,
+            low_slice=low_slice,
+            high_slice=high_slice,
+            theta_values=theta_values,
+            theta_min_used=theta_min_used,
+            pole_thetas=pole_thetas,
+            g_elastic_total=g_elastic_total,
+            g_spin_exchange=g_spin_exchange,
+            prob_axis=prob_axis,
+            negative_policy=negative_policy,
+            negative_rel_tol=negative_rel_tol,
+        )
+        rows.append(row)
+        inverse_rows.append(inverse_cdf)
+
+    return {
+        "rows": rows,
+        "energy_cm_ev": runtime_energy_values,
+        "sigma_t_pure_cm2": np.array([row["sigma_t_pure_cm2"] for row in rows], dtype=float),
+        "sigma_mt_pure_cm2": np.array([row["sigma_mt_pure_cm2"] for row in rows], dtype=float),
+        "sigma_vi_pure_cm2": np.array([row["sigma_vi_pure_cm2"] for row in rows], dtype=float),
+        "transport_ratio_pure": np.array(
+            [row["transport_ratio_pure"] for row in rows],
+            dtype=float,
+        ),
+        "transport_ratio_from_cdf": np.array(
+            [row["transport_ratio_from_cdf"] for row in rows],
+            dtype=float,
+        ),
+        "inverse_cdf_rad": np.vstack(inverse_rows),
+    }
+
+
 def interpolate_inverse_cdf(
     tabulated_energy_cm_ev: np.ndarray,
     tabulated_inverse_cdf: np.ndarray,

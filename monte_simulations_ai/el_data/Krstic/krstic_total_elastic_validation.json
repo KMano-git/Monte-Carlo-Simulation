@@ -1,10 +1,13 @@
 {
   "angle_energy_mapping": "E_cm = 0.5 * E_lab",
+  "angle_interpolation_policy": "DCS-first: interpolate p(theta,E)=2*pi*sin(theta)*d sigma/d Omega in log(E)-log(p) on the theta grid, then integrate to an inverse CDF.",
   "angle_source": "Krstic elastic-total direct DCS",
   "below_tabulated_energy_policy": "Clamp to the 0.1 eV direct-DCS slice.",
   "cross_section_source": "Krstic integral fit (elastic total)",
-  "max_abs_runtime_angle_vs_integral_ratio_error": 0.10963699508493951,
-  "max_abs_runtime_angle_vs_interpolated_direct_ratio_error": 0.0054458221213119495,
+  "data_version": "Data Version 3.5 D + D^+ total-elastic cross section from Krstic integral fits with DCS-first scattering-angle CDF.",
+  "max_abs_runtime_angle_vs_dcs_inverse_cdf_ratio_error": 3.3306690738754696e-16,
+  "max_abs_runtime_angle_vs_dcs_moment_ratio_error": 0.0012783516173754395,
+  "max_abs_runtime_angle_vs_integral_ratio_error": 0.10865132856192916,
   "max_abs_sigma_mt_relative_error_dcs_vs_integral": 0.3006360647997983,
   "max_abs_sigma_t_relative_error_dcs_vs_integral": 0.09551977449980065,
   "max_abs_sigma_vi_relative_error_dcs_vs_integral": 1.2831683595079464,
@@ -16,6 +19,467 @@
   "runtime_cross_section_range_lab_ev": [
     0.0009931816931229604,
     99.31816931229602
+  ],
+  "runtime_dcs_rows": [
+    {
+      "energy_eV_amu": 0.00049659084656148,
+      "sigma_momentum_au": 414.6694030997389,
+      "sigma_momentum_cm2": 1.1611904361121367e-14,
+      "sigma_total_au": 978.7067380851452,
+      "sigma_total_cm2": 2.7406529045250703e-14,
+      "transport_ratio": 0.4236911701569011,
+      "transport_ratio_from_inverse_cdf": 0.42369122338475707
+    },
+    {
+      "energy_eV_amu": 0.9936683521525904,
+      "sigma_momentum_au": 355.27642849245814,
+      "sigma_momentum_cm2": 9.948734771788607e-15,
+      "sigma_total_au": 649.881027816701,
+      "sigma_total_cm2": 1.8198488445745515e-14,
+      "transport_ratio": 0.5466791817050303,
+      "transport_ratio_from_inverse_cdf": 0.5466790193871839
+    },
+    {
+      "energy_eV_amu": 1.9868401134586193,
+      "sigma_momentum_au": 338.46753545940254,
+      "sigma_momentum_cm2": 9.478038701962557e-15,
+      "sigma_total_au": 569.6577806143455,
+      "sigma_total_cm2": 1.5952012898987394e-14,
+      "transport_ratio": 0.5941594181236028,
+      "transport_ratio_from_inverse_cdf": 0.5941591039002261
+    },
+    {
+      "energy_eV_amu": 2.980011874764648,
+      "sigma_momentum_au": 330.68818871062916,
+      "sigma_momentum_cm2": 9.260195210826006e-15,
+      "sigma_total_au": 538.6665068359086,
+      "sigma_total_cm2": 1.5084170457624583e-14,
+      "transport_ratio": 0.6139015225822553,
+      "transport_ratio_from_inverse_cdf": 0.6139011014175046
+    },
+    {
+      "energy_eV_amu": 3.973183636070677,
+      "sigma_momentum_au": 314.0330136146639,
+      "sigma_momentum_cm2": 8.79380367364871e-15,
+      "sigma_total_au": 526.8163799610943,
+      "sigma_total_cm2": 1.4752333724774533e-14,
+      "transport_ratio": 0.5960957661146667,
+      "transport_ratio_from_inverse_cdf": 0.5960953301001
+    },
+    {
+      "energy_eV_amu": 4.966355397376706,
+      "sigma_momentum_au": 303.45859230899737,
+      "sigma_momentum_cm2": 8.497690268710392e-15,
+      "sigma_total_au": 505.994939689377,
+      "sigma_total_cm2": 1.4169275097133687e-14,
+      "transport_ratio": 0.5997265357935916,
+      "transport_ratio_from_inverse_cdf": 0.5997258701872192
+    },
+    {
+      "energy_eV_amu": 5.959527158682734,
+      "sigma_momentum_au": 297.0590277153859,
+      "sigma_momentum_cm2": 8.318484541308409e-15,
+      "sigma_total_au": 483.9147538859729,
+      "sigma_total_cm2": 1.3550968070118123e-14,
+      "transport_ratio": 0.6138664410000265,
+      "transport_ratio_from_inverse_cdf": 0.6138642398598868
+    },
+    {
+      "energy_eV_amu": 6.952698919988763,
+      "sigma_momentum_au": 291.8029844136171,
+      "sigma_momentum_cm2": 8.171300611937637e-15,
+      "sigma_total_au": 473.34550561298255,
+      "sigma_total_cm2": 1.3254999524579228e-14,
+      "transport_ratio": 0.6164693251618226,
+      "transport_ratio_from_inverse_cdf": 0.6164998404909027
+    },
+    {
+      "energy_eV_amu": 7.945870681294792,
+      "sigma_momentum_au": 287.5027356793162,
+      "sigma_momentum_cm2": 8.050881606680754e-15,
+      "sigma_total_au": 467.388001176288,
+      "sigma_total_cm2": 1.3088172719339358e-14,
+      "transport_ratio": 0.6151264794041573,
+      "transport_ratio_from_inverse_cdf": 0.6151931697273124
+    },
+    {
+      "energy_eV_amu": 8.93904244260082,
+      "sigma_momentum_au": 284.32907505322385,
+      "sigma_momentum_cm2": 7.962010222900417e-15,
+      "sigma_total_au": 460.6697171837977,
+      "sigma_total_cm2": 1.2900041956354449e-14,
+      "transport_ratio": 0.6172080873720259,
+      "transport_ratio_from_inverse_cdf": 0.6173694570138724
+    },
+    {
+      "energy_eV_amu": 9.93221420390685,
+      "sigma_momentum_au": 281.6735194882433,
+      "sigma_momentum_cm2": 7.88764723152538e-15,
+      "sigma_total_au": 457.7911545256674,
+      "sigma_total_cm2": 1.281943414195136e-14,
+      "transport_ratio": 0.6152882525222545,
+      "transport_ratio_from_inverse_cdf": 0.6155536930143461
+    },
+    {
+      "energy_eV_amu": 10.925385965212879,
+      "sigma_momentum_au": 277.39270142321266,
+      "sigma_momentum_cm2": 7.76777233941394e-15,
+      "sigma_total_au": 446.437145699467,
+      "sigma_total_cm2": 1.2501490103593035e-14,
+      "transport_ratio": 0.6213477173558227,
+      "transport_ratio_from_inverse_cdf": 0.6214678854737634
+    },
+    {
+      "energy_eV_amu": 11.918557726518907,
+      "sigma_momentum_au": 273.8323078781209,
+      "sigma_momentum_cm2": 7.668071351049444e-15,
+      "sigma_total_au": 436.1408507669907,
+      "sigma_total_cm2": 1.2213165015857888e-14,
+      "transport_ratio": 0.627852922734854,
+      "transport_ratio_from_inverse_cdf": 0.6269408251759366
+    },
+    {
+      "energy_eV_amu": 12.911729487824937,
+      "sigma_momentum_au": 271.485050751122,
+      "sigma_momentum_cm2": 7.60234157917352e-15,
+      "sigma_total_au": 430.152941651133,
+      "sigma_total_cm2": 1.2045486794468348e-14,
+      "transport_ratio": 0.6311361017526286,
+      "transport_ratio_from_inverse_cdf": 0.6322197130480463
+    },
+    {
+      "energy_eV_amu": 13.904901249130965,
+      "sigma_momentum_au": 270.6868754015374,
+      "sigma_momentum_cm2": 7.579990434494172e-15,
+      "sigma_total_au": 430.8015949853256,
+      "sigma_total_cm2": 1.2063650904055077e-14,
+      "transport_ratio": 0.6283330390426196,
+      "transport_ratio_from_inverse_cdf": 0.6283617942094647
+    },
+    {
+      "energy_eV_amu": 14.898073010436995,
+      "sigma_momentum_au": 269.96180995457763,
+      "sigma_momentum_cm2": 7.559686571796046e-15,
+      "sigma_total_au": 431.5383607659038,
+      "sigma_total_cm2": 1.208428240885545e-14,
+      "transport_ratio": 0.625580097851425,
+      "transport_ratio_from_inverse_cdf": 0.6245831217731836
+    },
+    {
+      "energy_eV_amu": 15.891244771743024,
+      "sigma_momentum_au": 269.2595178915796,
+      "sigma_momentum_cm2": 7.540020427614325e-15,
+      "sigma_total_au": 432.0085670512936,
+      "sigma_total_cm2": 1.2097449501423964e-14,
+      "transport_ratio": 0.6232735608217919,
+      "transport_ratio_from_inverse_cdf": 0.6230409010473839
+    },
+    {
+      "energy_eV_amu": 16.884416533049055,
+      "sigma_momentum_au": 267.6884324570566,
+      "sigma_momentum_cm2": 7.496025636408465e-15,
+      "sigma_total_au": 424.9932249603471,
+      "sigma_total_cm2": 1.1901000279919609e-14,
+      "transport_ratio": 0.6298651760437654,
+      "transport_ratio_from_inverse_cdf": 0.6309840596412224
+    },
+    {
+      "energy_eV_amu": 17.877588294355082,
+      "sigma_momentum_au": 266.22342471952294,
+      "sigma_momentum_cm2": 7.455001317735857e-15,
+      "sigma_total_au": 418.52118979689067,
+      "sigma_total_cm2": 1.171976517364437e-14,
+      "transport_ratio": 0.6361050078461303,
+      "transport_ratio_from_inverse_cdf": 0.6362675881684479
+    },
+    {
+      "energy_eV_amu": 18.870760055661112,
+      "sigma_momentum_au": 264.85140265486126,
+      "sigma_momentum_cm2": 7.416580858263548e-15,
+      "sigma_total_au": 412.52275219678097,
+      "sigma_total_cm2": 1.1551792125216019e-14,
+      "transport_ratio": 0.6420285941671461,
+      "transport_ratio_from_inverse_cdf": 0.6407502425497705
+    },
+    {
+      "energy_eV_amu": 19.863931816967142,
+      "sigma_momentum_au": 263.56155672984414,
+      "sigma_momentum_cm2": 7.380461560794479e-15,
+      "sigma_total_au": 406.94032791478946,
+      "sigma_total_cm2": 1.1395468614532267e-14,
+      "transport_ratio": 0.6476663497087272,
+      "transport_ratio_from_inverse_cdf": 0.6483147308560324
+    },
+    {
+      "energy_eV_amu": 20.85710357827317,
+      "sigma_momentum_au": 262.3057642899942,
+      "sigma_momentum_cm2": 7.34529585625985e-15,
+      "sigma_total_au": 406.0792586806749,
+      "sigma_total_cm2": 1.1371356264983203e-14,
+      "transport_ratio": 0.6459472102618798,
+      "transport_ratio_from_inverse_cdf": 0.6471775708026105
+    },
+    {
+      "energy_eV_amu": 21.8502753395792,
+      "sigma_momentum_au": 261.1157394800179,
+      "sigma_momentum_cm2": 7.311971829511046e-15,
+      "sigma_total_au": 405.72052098108145,
+      "sigma_total_cm2": 1.1361310604929028e-14,
+      "transport_ratio": 0.6435852415071547,
+      "transport_ratio_from_inverse_cdf": 0.6431789254627575
+    },
+    {
+      "energy_eV_amu": 22.84344710088523,
+      "sigma_momentum_au": 259.98830710604096,
+      "sigma_momentum_cm2": 7.280400566229043e-15,
+      "sigma_total_au": 405.43012157831294,
+      "sigma_total_cm2": 1.1353178608533182e-14,
+      "transport_ratio": 0.641265395116484,
+      "transport_ratio_from_inverse_cdf": 0.6400026034625149
+    },
+    {
+      "energy_eV_amu": 23.836618862191255,
+      "sigma_momentum_au": 258.9174192257339,
+      "sigma_momentum_cm2": 7.250412707094381e-15,
+      "sigma_total_au": 405.20017838112744,
+      "sigma_total_cm2": 1.1346739555171036e-14,
+      "transport_ratio": 0.6389864393944038,
+      "transport_ratio_from_inverse_cdf": 0.6386461672709391
+    },
+    {
+      "energy_eV_amu": 24.829790623497285,
+      "sigma_momentum_au": 257.8978679992335,
+      "sigma_momentum_cm2": 7.221862418008936e-15,
+      "sigma_total_au": 405.0239806258128,
+      "sigma_total_cm2": 1.1341805524668511e-14,
+      "transport_ratio": 0.6367471565529255,
+      "transport_ratio_from_inverse_cdf": 0.6372532468484713
+    },
+    {
+      "energy_eV_amu": 25.822962384803315,
+      "sigma_momentum_au": 257.00247286670424,
+      "sigma_momentum_cm2": 7.196788847191746e-15,
+      "sigma_total_au": 402.76557188422754,
+      "sigma_total_cm2": 1.1278563756359647e-14,
+      "transport_ratio": 0.6380944420457516,
+      "transport_ratio_from_inverse_cdf": 0.6381140313962629
+    },
+    {
+      "energy_eV_amu": 26.816134146109345,
+      "sigma_momentum_au": 256.1784760076687,
+      "sigma_momentum_cm2": 7.173714627947544e-15,
+      "sigma_total_au": 399.7677293390095,
+      "sigma_total_cm2": 1.1194615771134416e-14,
+      "transport_ratio": 0.6408182982434412,
+      "transport_ratio_from_inverse_cdf": 0.6396630303354549
+    },
+    {
+      "energy_eV_amu": 27.80930590741537,
+      "sigma_momentum_au": 255.39051442405727,
+      "sigma_momentum_cm2": 7.151649497313991e-15,
+      "sigma_total_au": 396.91446407839663,
+      "sigma_total_cm2": 1.1114716354694525e-14,
+      "transport_ratio": 0.6434396766493593,
+      "transport_ratio_from_inverse_cdf": 0.6433276724063595
+    },
+    {
+      "energy_eV_amu": 28.8024776687214,
+      "sigma_momentum_au": 254.63612721989443,
+      "sigma_momentum_cm2": 7.13052454331326e-15,
+      "sigma_total_au": 394.19436850321165,
+      "sigma_total_cm2": 1.1038546062321735e-14,
+      "transport_ratio": 0.6459659182518733,
+      "transport_ratio_from_inverse_cdf": 0.6471170362064942
+    },
+    {
+      "energy_eV_amu": 29.79564943002743,
+      "sigma_momentum_au": 253.9131284443525,
+      "sigma_momentum_cm2": 7.110278553201514e-15,
+      "sigma_total_au": 391.5973259598457,
+      "sigma_total_cm2": 1.0965821599388367e-14,
+      "transport_ratio": 0.648403632026815,
+      "transport_ratio_from_inverse_cdf": 0.6486244630806126
+    },
+    {
+      "energy_eV_amu": 30.788821191333458,
+      "sigma_momentum_au": 253.21957093205046,
+      "sigma_momentum_cm2": 7.090857000896023e-15,
+      "sigma_total_au": 389.1143301897582,
+      "sigma_total_cm2": 1.0896290765437762e-14,
+      "transport_ratio": 0.6507587906324694,
+      "transport_ratio_from_inverse_cdf": 0.6504506011922464
+    },
+    {
+      "energy_eV_amu": 31.781992952639488,
+      "sigma_momentum_au": 249.92302932537504,
+      "sigma_momentum_cm2": 6.998544605592612e-15,
+      "sigma_total_au": 384.73852348725086,
+      "sigma_total_cm2": 1.0773755925508788e-14,
+      "transport_ratio": 0.6495919022095451,
+      "transport_ratio_from_inverse_cdf": 0.6494378254761679
+    },
+    {
+      "energy_eV_amu": 32.775164713945514,
+      "sigma_momentum_au": 237.22058019566038,
+      "sigma_momentum_cm2": 6.6428404631030384e-15,
+      "sigma_total_au": 372.9729980127224,
+      "sigma_total_cm2": 1.0444288268750664e-14,
+      "transport_ratio": 0.636026150578248,
+      "transport_ratio_from_inverse_cdf": 0.6358104189270825
+    },
+    {
+      "energy_eV_amu": 33.768336475251544,
+      "sigma_momentum_au": 230.48916303057928,
+      "sigma_momentum_cm2": 6.454341934512705e-15,
+      "sigma_total_au": 365.37427157952305,
+      "sigma_total_cm2": 1.0231502652187068e-14,
+      "transport_ratio": 0.6308303045919689,
+      "transport_ratio_from_inverse_cdf": 0.6317912109774508
+    },
+    {
+      "energy_eV_amu": 34.761508236557574,
+      "sigma_momentum_au": 228.6353419467474,
+      "sigma_momentum_cm2": 6.402429753466378e-15,
+      "sigma_total_au": 361.20357364650295,
+      "sigma_total_cm2": 1.0114711432108293e-14,
+      "transport_ratio": 0.6329819487625132,
+      "transport_ratio_from_inverse_cdf": 0.633837361559073
+    },
+    {
+      "energy_eV_amu": 35.7546799978636,
+      "sigma_momentum_au": 230.90402765374174,
+      "sigma_momentum_cm2": 6.465959305582199e-15,
+      "sigma_total_au": 359.92931289383523,
+      "sigma_total_cm2": 1.0079028563103489e-14,
+      "transport_ratio": 0.6415260424255838,
+      "transport_ratio_from_inverse_cdf": 0.6413348117829023
+    },
+    {
+      "energy_eV_amu": 36.74785175916963,
+      "sigma_momentum_au": 236.78064701392017,
+      "sigma_momentum_cm2": 6.630521102201404e-15,
+      "sigma_total_au": 361.1694834594977,
+      "sigma_total_cm2": 1.0113756811419623e-14,
+      "transport_ratio": 0.655594278746624,
+      "transport_ratio_from_inverse_cdf": 0.6556710153890432
+    },
+    {
+      "energy_eV_amu": 37.74102352047566,
+      "sigma_momentum_au": 245.92455842276374,
+      "sigma_momentum_cm2": 6.886576224600969e-15,
+      "sigma_total_au": 364.651918812842,
+      "sigma_total_cm2": 1.0211274752132252e-14,
+      "transport_ratio": 0.674409061724929,
+      "transport_ratio_from_inverse_cdf": 0.6741610402484602
+    },
+    {
+      "energy_eV_amu": 38.73419528178169,
+      "sigma_momentum_au": 258.12321584678415,
+      "sigma_momentum_cm2": 7.228172788714327e-15,
+      "sigma_total_au": 370.1865169137188,
+      "sigma_total_cm2": 1.0366258995831485e-14,
+      "transport_ratio": 0.6972788150113696,
+      "transport_ratio_from_inverse_cdf": 0.6977213598983046
+    },
+    {
+      "energy_eV_amu": 39.72736704308772,
+      "sigma_momentum_au": 273.2602888373923,
+      "sigma_momentum_cm2": 7.652053216255729e-15,
+      "sigma_total_au": 377.64560466452184,
+      "sigma_total_cm2": 1.0575134338299673e-14,
+      "transport_ratio": 0.7235892208520226,
+      "transport_ratio_from_inverse_cdf": 0.7232004454302091
+    },
+    {
+      "energy_eV_amu": 40.72053880439375,
+      "sigma_momentum_au": 273.74152850431284,
+      "sigma_momentum_cm2": 7.665529274400571e-15,
+      "sigma_total_au": 378.01601591984104,
+      "sigma_total_cm2": 1.0585506890600124e-14,
+      "transport_ratio": 0.7241532553540276,
+      "transport_ratio_from_inverse_cdf": 0.7236399330301374
+    },
+    {
+      "energy_eV_amu": 41.71371056569977,
+      "sigma_momentum_au": 272.78235649012277,
+      "sigma_momentum_cm2": 7.63866977232161e-15,
+      "sigma_total_au": 377.6890056282876,
+      "sigma_total_cm2": 1.0576349686807811e-14,
+      "transport_ratio": 0.7222406594450583,
+      "transport_ratio_from_inverse_cdf": 0.7220440451850548
+    },
+    {
+      "energy_eV_amu": 42.7068823270058,
+      "sigma_momentum_au": 271.8545744875657,
+      "sigma_momentum_cm2": 7.612689278460404e-15,
+      "sigma_total_au": 377.3982882333039,
+      "sigma_total_cm2": 1.0568208785739563e-14,
+      "transport_ratio": 0.7203386527272956,
+      "transport_ratio_from_inverse_cdf": 0.7202864404117972
+    },
+    {
+      "energy_eV_amu": 43.70005408831183,
+      "sigma_momentum_au": 270.95620706434454,
+      "sigma_momentum_cm2": 7.587532475181428e-15,
+      "sigma_total_au": 377.14127373848817,
+      "sigma_total_cm2": 1.0561011660244137e-14,
+      "transport_ratio": 0.7184475047730444,
+      "transport_ratio_from_inverse_cdf": 0.7185577923322546
+    },
+    {
+      "energy_eV_amu": 44.69322584961786,
+      "sigma_momentum_au": 270.08546056984403,
+      "sigma_momentum_cm2": 7.563149135245228e-15,
+      "sigma_total_au": 376.9156154188636,
+      "sigma_total_cm2": 1.0554692595451353e-14,
+      "transport_ratio": 0.7165674477819127,
+      "transport_ratio_from_inverse_cdf": 0.7172365875548323
+    },
+    {
+      "energy_eV_amu": 45.68639761092389,
+      "sigma_momentum_au": 269.2407015572267,
+      "sigma_momentum_cm2": 7.539493517566708e-15,
+      "sigma_total_au": 376.7191812604912,
+      "sigma_total_cm2": 1.0549191889001283e-14,
+      "transport_ratio": 0.7146986799460417,
+      "transport_ratio_from_inverse_cdf": 0.7158801577549793
+    },
+    {
+      "energy_eV_amu": 46.67956937222992,
+      "sigma_momentum_au": 268.42043828608945,
+      "sigma_momentum_cm2": 7.516523849237705e-15,
+      "sigma_total_au": 376.55002939447604,
+      "sigma_total_cm2": 1.0544455163127634e-14,
+      "transport_ratio": 0.7128413685632476,
+      "transport_ratio_from_inverse_cdf": 0.7134518384526866
+    },
+    {
+      "energy_eV_amu": 47.67274113353594,
+      "sigma_momentum_au": 267.62330479887714,
+      "sigma_momentum_cm2": 7.494201879621997e-15,
+      "sigma_total_au": 376.40638688253966,
+      "sigma_total_cm2": 1.0540432770594383e-14,
+      "transport_ratio": 0.7109956529042397,
+      "transport_ratio_from_inverse_cdf": 0.7099668609453913
+    },
+    {
+      "energy_eV_amu": 48.66591289484197,
+      "sigma_momentum_au": 266.84804715769184,
+      "sigma_momentum_cm2": 7.472492494947413e-15,
+      "sigma_total_au": 376.2866313274325,
+      "sigma_total_cm2": 1.0537079279735827e-14,
+      "transport_ratio": 0.7091616468443953,
+      "transport_ratio_from_inverse_cdf": 0.7079028864428779
+    },
+    {
+      "energy_eV_amu": 49.659084656148,
+      "sigma_momentum_au": 266.0935115026401,
+      "sigma_momentum_cm2": 7.451363383906131e-15,
+      "sigma_total_au": 376.18927487447115,
+      "sigma_total_cm2": 1.0534353026454841e-14,
+      "transport_ratio": 0.7073394412730976,
+      "transport_ratio_from_inverse_cdf": 0.706805521983725
+    }
   ],
   "sigma_momentum_source": "Krstic integral fit (momentum transfer)",
   "sigv_max_cm3_s": 1.4251223505333007e-07,

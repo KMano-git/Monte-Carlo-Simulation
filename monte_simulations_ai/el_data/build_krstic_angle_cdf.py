@@ -108,13 +108,13 @@ def main() -> None:
         apply_blocks,
         compute_transport_tables_from_sigma_momentum,
         cross_section_axis,
+        evaluate_angle_transport_ratio,
         transport_axes,
     )
     from krstic_dcs import (
         BOHR_AREA_CM2,
+        build_pure_dcs_first_observables_by_energy,
         build_tabulated_observables,
-        interpolate_inverse_cdf,
-        interpolate_positive_observable,
         load_or_build_coefficients,
         write_coefficients_json,
     )
@@ -152,21 +152,25 @@ def main() -> None:
     sigma_energy_cm = 0.5 * sigma_energy_lab
     angle_energy_cm = 0.5 * angle_energy_lab
 
-    sigma_t_pure_cm2 = interpolate_positive_observable(
-        tabulated["energy_cm_ev"],
-        tabulated["sigma_t_pure_cm2"],
+    sigma_runtime = build_pure_dcs_first_observables_by_energy(
+        energy_slices,
+        prob_axis,
         sigma_energy_cm,
+        log_points=args.theta_log_points,
+        linear_points=args.theta_linear_points,
+        negative_policy=args.negative_pure_policy,
     )
-    sigma_mt_pure_cm2 = interpolate_positive_observable(
-        tabulated["energy_cm_ev"],
-        tabulated["sigma_mt_pure_cm2"],
-        sigma_energy_cm,
-    )
-    angle_table = interpolate_inverse_cdf(
-        tabulated["energy_cm_ev"],
-        tabulated["inverse_cdf_rad"],
+    angle_runtime = build_pure_dcs_first_observables_by_energy(
+        energy_slices,
+        prob_axis,
         angle_energy_cm,
+        log_points=args.theta_log_points,
+        linear_points=args.theta_linear_points,
+        negative_policy=args.negative_pure_policy,
     )
+    sigma_t_pure_cm2 = np.asarray(sigma_runtime["sigma_t_pure_cm2"], dtype=float)
+    sigma_mt_pure_cm2 = np.asarray(sigma_runtime["sigma_mt_pure_cm2"], dtype=float)
+    angle_table = np.asarray(angle_runtime["inverse_cdf_rad"], dtype=float)
     angle_table_compat = to_cdf_compatible_angle_order(angle_table)
     scattering_angle = angle_table_compat.ravel()
 
@@ -189,14 +193,17 @@ def main() -> None:
         sigv_max=float(transport["sigv_max"]),
         angle_min=0.0,
     )
+    data_version = (
+        "Data Version 3.4 D + D^+ pure-elastic cross section and angle CDF "
+        "rebuilt DCS-first from Krstic direct DCS fits."
+    )
     template.write(
         args.output_cdf,
         xs_name="dd_00_el_krstic_pure_dcs",
-        description="Krstic D+ + D pure-elastic tables rebuilt from direct DCS fits.",
-        data_version=(
-            "Data Version 3.3 D + D^+ pure-elastic cross section and angle CDF "
-            "rebuilt from Krstic direct DCS fits."
+        description=(
+            "Krstic D+ + D pure-elastic tables rebuilt DCS-first from direct DCS fits."
         ),
+        data_version=data_version,
     )
 
     validation_rows: list[dict[str, object]] = []
@@ -282,9 +289,25 @@ def main() -> None:
             )
     write_csv(Path(args.transport_csv), transport_rows)
 
+    runtime_angle_transport_ratio = evaluate_angle_transport_ratio(scattering_angle, template)
+    runtime_angle_dcs_ratio = np.asarray(angle_runtime["transport_ratio_pure"], dtype=float)
+    runtime_angle_cdf_ratio = np.asarray(angle_runtime["transport_ratio_from_cdf"], dtype=float)
+
     validation = {
         "coeff_json": str(coeff_json_path),
         "memo": str(memo_path),
+        "data_version": data_version,
+        "cross_section_source": "Krstic pure-elastic direct DCS",
+        "sigma_momentum_source": "Krstic pure-elastic direct DCS",
+        "angle_source": "Krstic pure-elastic direct DCS",
+        "runtime_interpolation_policy": (
+            "DCS-first: interpolate the elastic-total and spin-exchange "
+            "p(theta,E)=2*pi*sin(theta)*d sigma/d Omega kernels separately in "
+            "log(E)-log(p), subtract them to form pure elastic, clip negative "
+            "pure points according to negative_pure_policy, then integrate to "
+            "sigma_t/sigma_mt and inverse CDF."
+        ),
+        "below_tabulated_energy_policy": "Clamp to the lowest direct-DCS slice.",
         "negative_pure_policy": args.negative_pure_policy,
         "theta_log_points": args.theta_log_points,
         "theta_linear_points": args.theta_linear_points,
@@ -316,6 +339,14 @@ def main() -> None:
         "max_abs_cdf_vs_moment_ratio_error": float(
             max(abs(row["cdf_vs_moment_ratio_error"]) for row in validation_rows)
         ),
+        "max_abs_runtime_angle_vs_dcs_moment_ratio_error": float(
+            np.max(np.abs(runtime_angle_transport_ratio - runtime_angle_dcs_ratio))
+        ),
+        "max_abs_runtime_angle_vs_dcs_inverse_cdf_ratio_error": float(
+            np.max(np.abs(runtime_angle_transport_ratio - runtime_angle_cdf_ratio))
+        ),
+        "runtime_cross_section_rows": sigma_runtime["rows"],
+        "runtime_angle_rows": angle_runtime["rows"],
         "sigv_max_cm3_s": float(transport["sigv_max"]),
         "validation_rows": validation_rows,
     }

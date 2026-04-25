@@ -76,8 +76,7 @@ def main() -> None:
         cross_section_axis,
     )
     from krstic_dcs import (
-        build_tabulated_observables,
-        interpolate_positive_observable,
+        build_pure_dcs_first_observables_by_energy,
         load_or_build_coefficients,
         write_coefficients_json,
     )
@@ -97,22 +96,19 @@ def main() -> None:
 
     cdf = ElasticCdf.from_file(input_path)
     prob_axis, _ = angle_axes(cdf)
-    tabulated = build_tabulated_observables(
-        energy_slices,
-        prob_axis,
-        log_points=args.theta_log_points,
-        linear_points=args.theta_linear_points,
-        negative_policy=args.negative_pure_policy,
-    )
 
     sigma_energy_lab = cross_section_axis(cdf)
     sigma_energy_cm = 0.5 * sigma_energy_lab
     sigma_total = cdf.get_block(0)
-    sigma_mt_from_dcs = interpolate_positive_observable(
-        tabulated["energy_cm_ev"],
-        tabulated["sigma_mt_pure_cm2"],
+    sigma_runtime = build_pure_dcs_first_observables_by_energy(
+        energy_slices,
+        prob_axis,
         sigma_energy_cm,
+        log_points=args.theta_log_points,
+        linear_points=args.theta_linear_points,
+        negative_policy=args.negative_pure_policy,
     )
+    sigma_mt_from_dcs = np.asarray(sigma_runtime["sigma_mt_pure_cm2"], dtype=float)
     transport = compute_transport_tables_from_sigma_momentum(
         cdf,
         cross_section=sigma_total,
@@ -137,7 +133,7 @@ def main() -> None:
     print(f"Wrote {output_path}")
     print("  preserved source blocks        : cross_section, scattering_angle, angle_min")
     print(
-        "  sigma_mt source               : Krstic DCS (pure elastic, E_cm = 0.5 * E_lab)"
+        "  sigma_mt source               : Krstic pure DCS-first (E_cm = 0.5 * E_lab)"
     )
     print(f"  negative pure policy          : {args.negative_pure_policy}")
     print(f"  sigma_mt grid points          : {sigma_mt_from_dcs.size}")

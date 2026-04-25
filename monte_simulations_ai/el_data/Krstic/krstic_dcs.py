@@ -187,12 +187,42 @@ def build_inverse_cdf(
 ) -> dict[str, np.ndarray | float]:
     theta_values = np.geomspace(theta_floor, math.pi, theta_points)
     kernel = fit.theta_kernel_au(theta_values)
+    return build_inverse_cdf_from_kernel(
+        theta_values,
+        kernel,
+        prob_axis,
+        energy_ev=fit.energy_ev,
+        channel=fit.channel,
+    )
+
+
+def build_inverse_cdf_from_kernel(
+    theta_values: np.ndarray,
+    kernel_au: np.ndarray,
+    prob_axis: np.ndarray,
+    *,
+    energy_ev: float,
+    channel: str,
+) -> dict[str, np.ndarray | float]:
+    theta_values = np.asarray(theta_values, dtype=float)
+    kernel = np.asarray(kernel_au, dtype=float)
+    prob = np.asarray(prob_axis, dtype=float)
+    if theta_values.ndim != 1 or kernel.ndim != 1:
+        raise ValueError("Theta grid and kernel must be 1D arrays.")
+    if theta_values.size != kernel.size:
+        raise ValueError("Theta grid and kernel lengths differ.")
+    if np.any(theta_values <= 0.0) or np.any(np.diff(theta_values) <= 0.0):
+        raise ValueError("Theta grid must be strictly increasing and positive.")
+    if np.any(kernel < 0.0) or not np.all(np.isfinite(kernel)):
+        raise ValueError(
+            f"Invalid differential-fit kernel for {channel} at E={energy_ev:.6g} eV."
+        )
 
     cumulative = integrate.cumulative_trapezoid(kernel, theta_values, initial=0.0)
     sigma_total_au = float(cumulative[-1])
     if sigma_total_au <= 0.0:
         raise ValueError(
-            f"Non-positive integrated cross section for {fit.channel} at E={fit.energy_ev:.6g} eV."
+            f"Non-positive integrated cross section for {channel} at E={energy_ev:.6g} eV."
         )
 
     sigma_momentum_au = float(
@@ -200,9 +230,12 @@ def build_inverse_cdf(
     )
     probability_support = np.concatenate(([0.0], cumulative / sigma_total_au))
     theta_support = np.concatenate(([0.0], theta_values))
-    inverse_cdf = np.interp(prob_axis, probability_support, theta_support)
+    inverse_cdf = np.interp(prob, probability_support, theta_support)
     inverse_cdf[0] = 0.0
     inverse_cdf[-1] = math.pi
+    transport_ratio_from_inverse_cdf = float(
+        integrate.simpson(1.0 - np.cos(inverse_cdf), x=prob)
+    )
 
     return {
         "inverse_cdf_rad": inverse_cdf,
@@ -211,6 +244,7 @@ def build_inverse_cdf(
         "sigma_momentum_au": sigma_momentum_au,
         "sigma_momentum_cm2": sigma_momentum_au * BOHR_AREA_CM2,
         "transport_ratio": sigma_momentum_au / sigma_total_au,
+        "transport_ratio_from_inverse_cdf": transport_ratio_from_inverse_cdf,
     }
 
 
@@ -275,3 +309,86 @@ def interpolate_inverse_cdf_by_energy(
     inverse_out[:, 0] = 0.0
     inverse_out[:, -1] = math.pi
     return inverse_out
+
+
+def interpolate_theta_kernel_by_energy(
+    fits: list[DifferentialFit],
+    theta_values: np.ndarray,
+    runtime_energy: np.ndarray,
+) -> np.ndarray:
+    """Return DCS-first theta kernels interpolated in log(E)-log(kernel)."""
+    if not fits:
+        raise ValueError("At least one DCS fit is required.")
+    sorted_fits = sorted(fits, key=lambda fit: fit.energy_ev)
+    energy_in = np.array([fit.energy_ev for fit in sorted_fits], dtype=float)
+    energy_out = np.asarray(runtime_energy, dtype=float)
+    theta_grid = np.asarray(theta_values, dtype=float)
+    if np.any(energy_in <= 0.0) or np.any(energy_out <= 0.0):
+        raise ValueError("DCS energy interpolation requires positive energies.")
+
+    kernel_in = np.vstack([fit.theta_kernel_au(theta_grid) for fit in sorted_fits])
+    if np.any(kernel_in <= 0.0):
+        raise ValueError("Log-kernel interpolation requires strictly positive DCS kernels.")
+
+    log_energy_in = np.log(energy_in)
+    log_kernel_in = np.log(kernel_in)
+    log_energy_out = np.log(np.clip(energy_out, energy_in[0], energy_in[-1]))
+    kernel_out = np.zeros((energy_out.size, theta_grid.size), dtype=float)
+
+    for theta_index in range(theta_grid.size):
+        kernel_out[:, theta_index] = np.exp(
+            np.interp(
+                log_energy_out,
+                log_energy_in,
+                log_kernel_in[:, theta_index],
+                left=float(log_kernel_in[0, theta_index]),
+                right=float(log_kernel_in[-1, theta_index]),
+            )
+        )
+    return kernel_out
+
+
+def build_dcs_first_inverse_cdf_by_energy(
+    fits: list[DifferentialFit],
+    prob_axis: np.ndarray,
+    runtime_energy: np.ndarray,
+    *,
+    theta_floor: float = 1.0e-8,
+    theta_points: int = 16384,
+) -> tuple[np.ndarray, list[dict[str, float]]]:
+    """Build inverse CDFs after interpolating p(theta, E) on the theta grid."""
+    theta_values = np.geomspace(theta_floor, math.pi, theta_points)
+    runtime_energy_values = np.asarray(runtime_energy, dtype=float)
+    kernels = interpolate_theta_kernel_by_energy(fits, theta_values, runtime_energy_values)
+    inverse_cdf_table = np.zeros(
+        (runtime_energy_values.size, np.asarray(prob_axis).size),
+        dtype=float,
+    )
+    summaries: list[dict[str, float]] = []
+
+    for index, (energy_ev, kernel) in enumerate(
+        zip(runtime_energy_values, kernels, strict=True)
+    ):
+        built = build_inverse_cdf_from_kernel(
+            theta_values,
+            kernel,
+            prob_axis,
+            energy_ev=float(energy_ev),
+            channel="Elastic",
+        )
+        inverse_cdf_table[index] = np.asarray(built["inverse_cdf_rad"], dtype=float)
+        summaries.append(
+            {
+                "energy_eV_amu": float(energy_ev),
+                "sigma_total_au": float(built["sigma_total_au"]),
+                "sigma_total_cm2": float(built["sigma_total_cm2"]),
+                "sigma_momentum_au": float(built["sigma_momentum_au"]),
+                "sigma_momentum_cm2": float(built["sigma_momentum_cm2"]),
+                "transport_ratio": float(built["transport_ratio"]),
+                "transport_ratio_from_inverse_cdf": float(
+                    built["transport_ratio_from_inverse_cdf"]
+                ),
+            }
+        )
+
+    return inverse_cdf_table, summaries

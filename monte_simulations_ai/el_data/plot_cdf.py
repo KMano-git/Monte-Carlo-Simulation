@@ -20,7 +20,7 @@ import os
 # CDFファイルのパース
 # =====================================================================
 CDF_PATH = os.path.join(os.path.dirname(__file__), "Krstic",
-                        "krstic_dd_total_elastic_integral_priority.cdf")
+                        "krstic_dd_pure_dcs_compat.cdf")
 OUT_DIR = os.path.join(os.path.dirname(__file__), "figure")
 os.makedirs(OUT_DIR, exist_ok=True)
 

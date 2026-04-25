@@ -296,8 +296,8 @@ def main() -> None:
         reshape_scattering_angles,
     )
     from krstic_dcs import (
+        build_pure_dcs_first_observables_by_energy,
         build_tabulated_observables,
-        interpolate_inverse_cdf,
         load_or_build_coefficients,
     )
 
@@ -343,12 +343,14 @@ def main() -> None:
         prob_axis,
         theta_points=args.theta_points_total,
     )
+    total_runtime_inverse, _ = krstic_total_module.build_dcs_first_inverse_cdf_by_energy(
+        total_fits,
+        prob_axis,
+        runtime_energy_cm,
+        theta_points=args.theta_points_total,
+    )
     total_runtime_rebuilt = to_cdf_compatible_angle_order(
-        krstic_total_module.interpolate_inverse_cdf_by_energy(
-            total_fit_energy_cm,
-            total_inverse_native,
-            runtime_energy_cm,
-        )
+        total_runtime_inverse
     )
 
     energy_slices = load_or_build_coefficients(
@@ -362,12 +364,16 @@ def main() -> None:
         linear_points=args.theta_linear_points,
         negative_policy=args.negative_pure_policy,
     )
+    pure_runtime_dcs = build_pure_dcs_first_observables_by_energy(
+        energy_slices,
+        prob_axis,
+        runtime_energy_cm,
+        log_points=args.theta_log_points,
+        linear_points=args.theta_linear_points,
+        negative_policy=args.negative_pure_policy,
+    )
     pure_runtime_rebuilt = to_cdf_compatible_angle_order(
-        interpolate_inverse_cdf(
-            pure_tabulated["energy_cm_ev"],
-            pure_tabulated["inverse_cdf_rad"],
-            runtime_energy_cm,
-        )
+        np.asarray(pure_runtime_dcs["inverse_cdf_rad"], dtype=float)
     )
     if not np.allclose(total_fit_energy_cm, pure_tabulated["energy_cm_ev"]):
         raise ValueError("Total and pure Krstic native DCS energy grids differ.")

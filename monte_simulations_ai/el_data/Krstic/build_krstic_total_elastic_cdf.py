@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build a Krstic total-elastic dataset with integral sigma priority and DCS angles."""
+"""Build a Krstic total-elastic dataset with integral-fit sigma and DCS-first angles."""
 
 from __future__ import annotations
 
@@ -142,8 +142,8 @@ def main() -> None:
     )
     from generate_krstic_integral_data import BOHR_AREA_CM2, MODELS
     from krstic_dcs import (
+        build_dcs_first_inverse_cdf_by_energy,
         build_tabulated_inverse_cdf,
-        interpolate_inverse_cdf_by_energy,
         parse_krstic_dcs_markdown,
     )
 
@@ -182,16 +182,18 @@ def main() -> None:
         encoding="utf-8",
     )
 
-    tabulated_energy_cm, tabulated_angle_table, tabulated_summary = build_tabulated_inverse_cdf(
+    tabulated_energy_cm, _, tabulated_summary = build_tabulated_inverse_cdf(
         elastic_fits,
         prob_axis,
         theta_floor=THETA_FLOOR_RAD,
         theta_points=THETA_POINTS,
     )
-    runtime_angle_grid = interpolate_inverse_cdf_by_energy(
-        tabulated_energy_cm,
-        tabulated_angle_table,
+    runtime_angle_grid, runtime_dcs_summary = build_dcs_first_inverse_cdf_by_energy(
+        elastic_fits,
+        prob_axis,
         angle_energy_cm,
+        theta_floor=THETA_FLOOR_RAD,
+        theta_points=THETA_POINTS,
     )
     runtime_angle_grid_compat = to_cdf_compatible_angle_order(runtime_angle_grid)
     scattering_angle = runtime_angle_grid_compat.ravel()
@@ -216,22 +218,22 @@ def main() -> None:
         sigv_max=float(transport["sigv_max"]),
         angle_min=0.0,
     )
+    data_version = (
+        "Data Version 3.5 D + D^+ total-elastic cross section from Krstic integral fits "
+        "with DCS-first scattering-angle CDF."
+    )
     template.write(
         output_path,
         xs_name="dd_00_el_krstic_total",
         description=(
             "Krstic D+ + D total-elastic tables with integral-priority sigma_t/sigma_mt "
-            "and direct-DCS angle CDF."
+            "and DCS-first scattering-angle CDF."
         ),
-        data_version=(
-            "Data Version 3.4 D + D^+ total-elastic cross section from Krstic integral fits "
-            "with direct-DCS scattering-angle CDF."
-        ),
+        data_version=data_version,
     )
 
     validation_rows: list[dict[str, object]] = []
-    tabulated_direct_ratio = np.zeros(tabulated_energy_cm.size, dtype=float)
-    for index, summary in enumerate(tabulated_summary):
+    for summary in tabulated_summary:
         energy_cm = float(summary["energy_eV_amu"])
         sigma_total_integral = MODELS["elastic"].evaluate_au(energy_cm) * BOHR_AREA_CM2
         sigma_mt_integral = MODELS["momentum_transfer"].evaluate_au(energy_cm) * BOHR_AREA_CM2
@@ -243,7 +245,6 @@ def main() -> None:
             np.trapz(np.sin(theta_values) ** 2 * kernel, x=theta_values) * BOHR_AREA_CM2
         )
         integral_ratio = sigma_mt_integral / sigma_total_integral
-        tabulated_direct_ratio[index] = float(summary["transport_ratio"])
         validation_rows.append(
             {
                 "energy_cm_ev": energy_cm,
@@ -303,12 +304,13 @@ def main() -> None:
             )
     write_csv(transport_csv_out, transport_rows)
 
-    interpolated_direct_ratio = np.interp(
-        np.log(np.clip(angle_energy_cm, tabulated_energy_cm[0], tabulated_energy_cm[-1])),
-        np.log(tabulated_energy_cm),
-        tabulated_direct_ratio,
-        left=float(tabulated_direct_ratio[0]),
-        right=float(tabulated_direct_ratio[-1]),
+    runtime_dcs_ratio = np.array(
+        [float(summary["transport_ratio"]) for summary in runtime_dcs_summary],
+        dtype=float,
+    )
+    runtime_dcs_cdf_ratio = np.array(
+        [float(summary["transport_ratio_from_inverse_cdf"]) for summary in runtime_dcs_summary],
+        dtype=float,
     )
     runtime_integral_ratio = np.array(
         [
@@ -322,9 +324,14 @@ def main() -> None:
     validation = {
         "source_coeff_markdown": str(markdown_path.resolve()),
         "source_coeff_json": coeff_json_out.name,
+        "data_version": data_version,
         "cross_section_source": "Krstic integral fit (elastic total)",
         "sigma_momentum_source": "Krstic integral fit (momentum transfer)",
         "angle_source": "Krstic elastic-total direct DCS",
+        "angle_interpolation_policy": (
+            "DCS-first: interpolate p(theta,E)=2*pi*sin(theta)*d sigma/d Omega "
+            "in log(E)-log(p) on the theta grid, then integrate to an inverse CDF."
+        ),
         "angle_energy_mapping": "E_cm = 0.5 * E_lab",
         "tabulated_energy_range_cm_ev": [
             float(tabulated_energy_cm[0]),
@@ -354,12 +361,16 @@ def main() -> None:
         "max_abs_sigma_vi_relative_error_dcs_vs_integral": float(
             max(abs(row["sigma_vi_relative_error_dcs_vs_integral"]) for row in validation_rows)
         ),
-        "max_abs_runtime_angle_vs_interpolated_direct_ratio_error": float(
-            np.max(np.abs(runtime_angle_transport_ratio - interpolated_direct_ratio))
+        "max_abs_runtime_angle_vs_dcs_moment_ratio_error": float(
+            np.max(np.abs(runtime_angle_transport_ratio - runtime_dcs_ratio))
+        ),
+        "max_abs_runtime_angle_vs_dcs_inverse_cdf_ratio_error": float(
+            np.max(np.abs(runtime_angle_transport_ratio - runtime_dcs_cdf_ratio))
         ),
         "max_abs_runtime_angle_vs_integral_ratio_error": float(
             np.max(np.abs(runtime_angle_transport_ratio - runtime_integral_ratio))
         ),
+        "runtime_dcs_rows": runtime_dcs_summary,
         "sigv_max_cm3_s": float(transport["sigv_max"]),
         "validation_rows": validation_rows,
     }
