@@ -5,11 +5,11 @@
   n_steps      =       1000
   dt           =   1.0000E-08
   tl_el_inner  =         16
-  enable_cx    = T
+  enable_cx    = F
   enable_el    = T
-  enable_ei    = T
+  enable_ei    = F
   weight_min   =   1.0000E-10
-  tl_el_table  = ../../tl_el_table.dat
+  tl_el_table  = ../../el_data/tl_el_table_1e6.dat
   n_i          =   1.0000E+21
   T_i          =     2.00 eV
   T_e          =     2.00 eV
@@ -20,49 +20,49 @@
  CDF file loaded successfully.
    xs_mult(y):   1.0000E-04  1.0000E-06  1.0000E-06  1.0000E-08  1.0000E-10
    Sigma range [m^2]:   8.1600E-19 -   1.6604E-17
- TL EL pretab table loaded: ../../tl_el_table.dat
+ TL EL pretab table loaded: ../../el_data/tl_el_table_1e6.dat
  nu_max/n_i = sigma_v_max =   8.2930E-12 [m^3/s]
  nu_max =   8.2930E+09 [1/s]
 
 Starting simulation...
-  Histogram output at step      1, weight_sum =   9.9975E+01
-  Histogram output at step     10, weight_sum =   9.9748E+01
-  Histogram output at step     50, weight_sum =   9.8748E+01
-  Step    100/  1000  alive=     100  CX=    13  EL=    35
-  Histogram output at step    100, weight_sum =   9.7512E+01
-  Step    200/  1000  alive=     100  CX=    16  EL=    47
-  Step    300/  1000  alive=     100  CX=     8  EL=    34
-  Step    400/  1000  alive=     100  CX=    15  EL=    41
-  Step    500/  1000  alive=     100  CX=    10  EL=    49
-  Histogram output at step    500, weight_sum =   8.8165E+01
-  Step    600/  1000  alive=     100  CX=    10  EL=    38
-  Step    700/  1000  alive=     100  CX=    17  EL=    35
-  Step    800/  1000  alive=     100  CX=     9  EL=    37
-  Step    900/  1000  alive=     100  CX=    20  EL=    50
-  Step   1000/  1000  alive=     100  CX=    14  EL=    47
-  Histogram output at step   1000, weight_sum =   7.7731E+01
-Elapsed time:       1.2753 seconds
+  Histogram output at step      1, weight_sum =   1.0000E+02
+  Histogram output at step      5, weight_sum =   1.0000E+02
+  Histogram output at step     10, weight_sum =   1.0000E+02
+  Histogram output at step     50, weight_sum =   1.0000E+02
+  Step    100/  1000  alive=     100  CX=     0  EL=    46
+  Histogram output at step    100, weight_sum =   1.0000E+02
+  Step    200/  1000  alive=     100  CX=     0  EL=    42
+  Step    300/  1000  alive=     100  CX=     0  EL=    36
+  Step    400/  1000  alive=     100  CX=     0  EL=    41
+  Step    500/  1000  alive=     100  CX=     0  EL=    37
+  Histogram output at step    500, weight_sum =   1.0000E+02
+  Step    600/  1000  alive=     100  CX=     0  EL=    29
+  Step    700/  1000  alive=     100  CX=     0  EL=    24
+  Step    800/  1000  alive=     100  CX=     0  EL=    42
+  Step    900/  1000  alive=     100  CX=     0  EL=    34
+  Step   1000/  1000  alive=     100  CX=     0  EL=    36
+Elapsed time:       1.1813 seconds
 
 Simulation complete.
 
-==========================================
+================================================================================
  Scoring Results (time-averaged) [W/m3]
-==========================================
-          EI              CX              EL              Total
- A(EL):    -5.752678E+05
- CL:     5.395339E+05    9.584595E+05    9.354562E+07    9.504361E+07
- CLInner(EL):     2.825763E+06
- TR:     5.380479E+05    2.583745E+06    6.131992E+07    6.444171E+07
- TRInner(EL):     6.586123E+05
- TRPretab(EL):     1.640292E+06
-==========================================
+================================================================================
+                              EI              CX              EL           Total
+          A(EL):                                   -2.024174E+05                
+             CL:    0.000000E+00    0.000000E+00    1.768766E+06    1.768766E+06
+    CLInner(EL):                                    6.040375E+06                
+             TR:    0.000000E+00    0.000000E+00    2.653199E+06    2.653199E+06
+    TRInner(EL):                                    4.821818E+06                
+   TRPretab(EL):                                    4.525033E+06                
+================================================================================
 
 ==========================================
  Final Statistics
 ==========================================
   Alive particles  =        100
-  Total weight     =      77.7312
-  Mean energy      =       2.8331 eV
-  Eff. temperature =       1.8887 eV
+  Total weight     =     100.0000
+  Mean energy      =       3.0007 eV
+  Eff. temperature =       2.0004 eV
 ==========================================
   dE Histogram output (collect_time=  1.0000E-05 s)

@@ -17,7 +17,7 @@ EL_ONLY_RE = re.compile(
     rf"^\s*(A\(EL\)|CLInner\(EL\)|TRInner\(EL\)|TRPretab\(EL\)):\s+({SCIENTIFIC_RE})\s*$"
 )
 RUN_ID_RE = re.compile(r"run_(\d+)")
-RESULT_SIZE_RE = re.compile(r"result_fixedcdf_new_(\d+)")
+RESULT_SIZE_RE = re.compile(r"result_krstic_total_(\d+)")
 
 OUTPUT_HEADER = [
     "Run_ID",
@@ -117,7 +117,7 @@ def write_result_csv(result_dir: Path) -> tuple[Path, int]:
         raise FileNotFoundError(f"run.log が見つかりません: {result_dir}")
 
     rows = [parse_run_log(log_path) for log_path in log_files]
-    output_path = result_dir.parent / f"ensemble_results_fixedcdf_new_{get_result_size(result_dir)}.csv"
+    output_path = result_dir.parent / f"ensemble_results_krstic_total_{get_result_size(result_dir)}.csv"
 
     with output_path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=OUTPUT_HEADER)

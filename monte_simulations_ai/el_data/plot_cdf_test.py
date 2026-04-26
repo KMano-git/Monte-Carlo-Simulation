@@ -179,6 +179,7 @@ Z = data.reshape(n2, n1)   # shape = (nE, n_rand)
 
 x_rand = make_axis(n1, xs_min[idx][0], xs_max[idx][0], xs_spacing[idx][0])
 E_scat = make_axis(n2, xs_min[idx][1], xs_max[idx][1], xs_spacing[idx][1])
+probability = 1.0 - x_rand
 
 # 5点を等間隔インデックスで選ぶ（被りなし）
 e_indices = np.linspace(0, n2 - 1, 5, dtype=int)
@@ -186,13 +187,14 @@ e_indices = np.linspace(0, n2 - 1, 5, dtype=int)
 fig, ax = plt.subplots(figsize=(9, 6))
 for j in e_indices:
     E_actual = E_scat[j]
-    ax.plot(x_rand, Z[j, :], '-', lw=1.5,
+    ax.plot(Z[j, ::-1], probability[::-1], '-', lw=1.5,
             label=f"E = {E_actual:.4g} eV/amu")
 
-ax.set_xlabel("1st random number (CDF)")
-ax.set_ylabel("scattering angle θ [rad]")
-ax.set_ylim(0, np.pi)
-ax.set_title("scattering_angle  θ(rand)  at various E")
+ax.set_xlim(0.0, np.pi)
+ax.set_ylim(0.0, 1.0)
+ax.set_xlabel("Scattering angle [rad]")
+ax.set_ylabel("Probability")
+ax.set_title("Scattering angle CDF at various E")
 ax.legend(fontsize=9)
 ax.grid(True, alpha=0.3)
 fig.tight_layout()

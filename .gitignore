@@ -15,6 +15,7 @@ simulation.out
 # 実行結果
 *.csv
 *.dat
+*.log
 
 # バイナリ（拡張子なしの実行ファイルは個別に指定）
 src_read/

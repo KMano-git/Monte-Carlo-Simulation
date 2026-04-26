@@ -214,29 +214,52 @@ def plot_angle_samples(
     figure_title: str,
 ) -> None:
     n_panels = len(sample_indices)
-    ncols = min(3, max(1, n_panels))
+    if n_panels == 6:
+        ncols = 3
+        panel_width = 5.2
+        panel_height = 4.2
+        axes_box_aspect = 0.8
+    else:
+        ncols = min(3, max(1, n_panels))
+        panel_width = 5.2
+        panel_height = 3.6
+        axes_box_aspect = None
     nrows = int(np.ceil(n_panels / ncols))
-    fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(5.2 * ncols, 3.6 * nrows))
+    fig, axes = plt.subplots(
+        nrows=nrows,
+        ncols=ncols,
+        figsize=(panel_width * ncols, panel_height * nrows),
+    )
     axes_array = np.atleast_1d(axes).ravel()
+    probability = 1.0 - prob_axis
 
     for axis, energy_index in zip(axes_array, sample_indices, strict=False):
         energy_lab = float(runtime_energy_lab[energy_index])
-        axis.plot(prob_axis, bachmann_angle[energy_index], lw=2.0, label=bachmann_label)
         axis.plot(
-            prob_axis,
-            krstic_total_angle[energy_index],
+            bachmann_angle[energy_index, ::-1],
+            probability[::-1],
+            lw=2.0,
+            label=bachmann_label,
+        )
+        axis.plot(
+            krstic_total_angle[energy_index, ::-1],
+            probability[::-1],
             lw=1.8,
             label=krstic_total_label,
         )
         axis.plot(
-            prob_axis,
-            krstic_pure_angle[energy_index],
+            krstic_pure_angle[energy_index, ::-1],
+            probability[::-1],
             lw=1.8,
             label=krstic_pure_label,
         )
         axis.set_title(f"E = {energy_lab:.4g} eV/amu")
-        axis.set_xlabel("1st random number (CDF)")
-        axis.set_ylabel("scattering angle [rad]")
+        axis.set_xlim(0.0, np.pi)
+        axis.set_ylim(0.0, 1.0)
+        axis.set_xlabel("Scattering angle [rad]")
+        axis.set_ylabel("Probability")
+        if axes_box_aspect is not None:
+            axis.set_box_aspect(axes_box_aspect)
         axis.grid(True, alpha=0.3)
 
     for axis in axes_array[n_panels:]:
@@ -399,13 +422,18 @@ def main() -> None:
         prob_axis,
         bachmann_native_angle_overlap,
     )
+    native_plot_sample_indices = select_sample_indices(native_energy_lab, args.sample_energies)
+    bachmann_native_plot_angle = interpolate_angle_grid_by_energy(
+        runtime_energy_lab,
+        bachmann_angle,
+        native_energy_lab,
+    )
 
     pure_fit_range_lab = (
         2.0 * float(pure_tabulated["energy_cm_ev"][0]),
         2.0 * float(pure_tabulated["energy_cm_ev"][-1]),
     )
     sample_indices = select_sample_indices(runtime_energy_lab, args.sample_energies)
-    native_sample_indices = select_sample_indices(native_overlap_energy_lab, args.sample_energies)
 
     rows: list[dict[str, object]] = []
     for index, energy_lab in enumerate(runtime_energy_lab):
@@ -556,7 +584,7 @@ def main() -> None:
         ),
         "sample_energies_lab_ev": [float(runtime_energy_lab[index]) for index in sample_indices],
         "native_sample_energies_lab_ev": [
-            float(native_overlap_energy_lab[index]) for index in native_sample_indices
+            float(native_energy_lab[index]) for index in native_plot_sample_indices
         ],
         "max_total_vs_bachmann_rms_angle_diff_rad": float(
             max(float(row["total_vs_bachmann_rms_angle_diff_rad"]) for row in rows)
@@ -634,20 +662,20 @@ def main() -> None:
         bachmann_label="Bachmann table",
         krstic_total_label="Krstic total-elastic table",
         krstic_pure_label="Krstic pure-elastic table",
-        figure_title="Bachmann vs Krstic runtime scattering-angle inverse CDF samples",
+        figure_title="Bachmann vs Krstic runtime scattering-angle CDF samples",
     )
     plot_angle_samples(
-        native_overlap_energy_lab,
+        native_energy_lab,
         prob_axis,
-        bachmann_native_angle_overlap,
-        total_native_angle_overlap,
-        pure_native_angle_overlap,
-        native_sample_indices,
+        bachmann_native_plot_angle,
+        total_native_angle,
+        pure_native_angle,
+        native_plot_sample_indices,
         native_samples_figure_path,
-        bachmann_label="Bachmann table (interpolated)",
+        bachmann_label="Bachmann table (interpolated/clamped)",
         krstic_total_label="Krstic total-elastic native DCS",
         krstic_pure_label="Krstic pure-elastic native DCS",
-        figure_title="Bachmann vs Krstic native-DCS inverse CDF samples",
+        figure_title="Bachmann vs Krstic native-DCS scattering-angle CDF samples",
     )
     plot_transport_ratio(
         runtime_energy_lab,
