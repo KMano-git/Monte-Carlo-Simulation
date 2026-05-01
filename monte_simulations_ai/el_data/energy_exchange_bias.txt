@@ -1,0 +1,17 @@
+cross-section,temperature(eV),Wi,stddev
+krstic_total,0.5,1.222760E+08,  2.088367E+05
+krstic_total,1.0,9.101122E+07,  3.684261E+05
+krstic_total,2.0,-1.633168E+06,  7.553046E+05
+krstic_total,5.0,-6.624450E+06,  2.718706E+06
+krstic_total,10.0,-1.603385E+07,  6.968626E+06
+krstic_total,20.0,-7.141413E+07,  1.568484E+07
+krstic_total,50.0,-9.606456E+08,  5.530418E+07
+krstic_total,100.0,-2.096724E+09,  1.361079E+08
+krstic_pure_el,0.5,2.597028E+07,  4.818959E+04
+krstic_pure_el,1.0,1.997338E+07,  8.189842E+04
+krstic_pure_el,2.0,-3.619570E+05,  1.644737E+05
+krstic_pure_el,5.0,-1.404520E+06,  6.235401E+05
+krstic_pure_el,10.0,-3.711945E+06,  1.673380E+06
+krstic_pure_el,20.0,-8.167057E+06,  4.056208E+06
+krstic_pure_el,50.0,3.184508E+07,  9.576672E+06
+krstic_pure_el,100.0,2.321113E+08,  2.100052E+07

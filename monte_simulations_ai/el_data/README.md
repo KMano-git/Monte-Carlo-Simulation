@@ -48,6 +48,14 @@
 - `debug_krstic_scattering_angle.py`
   - Bachmann baseline と Krstic total / pure の `scattering_angle` を同じ runtime energy 軸で比較する debug スクリプト
   - 代表 energy の線図、angle table から戻した transport ratio、per-energy diff サマリを出力する
+- `check_energy_exchange_bias.py`
+  - `dd_00_elastic.cdf` 互換 CDF の `reaction_rate`, `I_1_0`, `I_1_1*up`, `I_1_2*up^2` を読み、3d3v / 元コードの lookup 式で得られる弾性衝突のエネルギー交換率を中性粒子 Maxwell 分布で積分する検証スクリプト
+  - 同温度・ゼロドリフトで `<sigma v DeltaE_n>` が 0 に近いかを見て、lookup table / 補間 / CDF 生成のバイアスを確認する
+  - 符号は、正なら中性粒子側のエネルギー増加を表す。3d3v の plasma-side source `Wi` では反対符号になる
+- `plot_energy_exchange_bias.py`
+  - `check_energy_exchange_bias.py` の評価式を使い、`T_i = T_n` の温度掃引でイオン側エネルギー寄与 `-<sigma v DeltaE_n>` を図示する
+  - 既定では 0.2--100 eV、温度クランプなしで、Krstic_total / Krstic_pure_el の2本を比較し、`energy_exchange_bias.txt` があれば実シミュレーションの `Wi` も重ねる
+  - 図、理論曲線 CSV、シミュレーション換算 CSV を `figure/` に出力する
 
 ## 基準 CDF の扱い
 
@@ -100,6 +108,75 @@ python3 plot_cdf_test.py
 ```bash
 python3 calc_I_kernel.py
 ```
+
+## エネルギー交換率の検証
+
+弾性衝突の track-length / lookup 評価では、実行時に散乱角を直接サンプリングせず、CDF 内の `I_1_x` テーブルを参照して運動量・エネルギー交換率を計算する。`check_energy_exchange_bias.py` はこの lookup 式を再現し、さらに中性粒子速度を Maxwell 分布で積分して、温度ペアごとの期待値
+
+```text
+<sigma v DeltaE_n>  [eV cm^3/s]
+```
+
+を評価する。たとえば 2.0 eV 同士のように中性粒子温度とイオン温度が等しく、ドリフトがない条件では、物理的には期待値が 0 に近いはずなので、残差は table 生成、補間、lookup 式のバイアス確認に使える。
+
+```bash
+# 検証用の既定: 温度クランプなし
+python3 check_energy_exchange_bias.py --pairs 2,2 \
+  --cdf Krstic/krstic_dd_total_elastic_integral_priority.cdf
+
+# 元コードの TLMT_EL=0.9 eV/amu を再現する場合
+python3 check_energy_exchange_bias.py --temperature-clamp --tlmt-el 0.9 \
+  --pairs 1,1 2,2 --cdf dd_00_elastic.cdf
+```
+
+出力 CSV では、主結果の `lookup_gain_ev_cm3_s` に加えて、常に `lookup_gain_no_clamp_ev_cm3_s` と `lookup_gain_clamped_reference_ev_cm3_s` も出す。これにより、検証用の no-clamp 評価と、元コード再現用の clamped 評価を同じファイル内で比較できる。
+
+図として確認する場合は、同じ期待値をイオン側の符号に反転してプロットする。
+
+```bash
+python3 plot_energy_exchange_bias.py
+```
+
+以前の4本比較を再生成したい場合は `--preset four` を使う。実シミュレーション点を重ねない純粋な lookup 曲線だけの比較にするなら、`--no-simulation-results` も指定する。
+
+```bash
+python3 plot_energy_exchange_bias.py --preset four --no-simulation-results \
+  --output figure/energy_exchange_ion_equal_temperature_four_cdfs.png \
+  --csv figure/energy_exchange_ion_equal_temperature_four_cdfs.csv
+```
+
+既定で参照する CDF は以下の2つである。Bachmann と Bachmann-Janev は既定の図には載せない。
+
+- Krstic_total: `Krstic/krstic_dd_total_elastic_integral_priority.cdf`
+- Krstic_pure_el: `Krstic/krstic_dd_pure_dcs_compat.cdf`
+
+`--preset four` で参照する CDF は以下の4つである。
+
+- Bachmann: `Bachmann/bachmann_dd_from_split_tables_compat.cdf`
+- Bachmann-Janev: `dd_00_elastic_pure_el_angle_fixed.cdf`
+- Krstic_total: `Krstic/krstic_dd_total_elastic_integral_priority.cdf`
+- Krstic_pure_el: `Krstic/krstic_dd_pure_dcs_compat.cdf`
+
+`energy_exchange_bias.txt` がある場合は、`Wi` と `stddev` を実シミュレーション結果として読む。`Wi` は `W/m^3` として扱い、既定では `n_i = 1.0e21 m^-3`, `n_n = 5.0e19 m^-3` を使って `eV cm^3/s` に換算して、点とエラーバーで重ねる。
+
+既定の出力は以下である。
+
+- `figure/energy_exchange_ion_equal_temperature.png`
+- `figure/energy_exchange_ion_equal_temperature.csv`
+- `figure/energy_exchange_simulation_converted.csv`
+
+### `Etm` と `Tim`
+
+CDF の `I_1_x(Etm, Tim)` は、テスト粒子である中性粒子の相対速度と、背景イオン Maxwell 分布の温度を引数にした事前積分テーブルである。元コードのコメントでは以下の定義になっている。
+
+```text
+Etm = 1/2 * mu * vt^2 = mu/mt * Et  [eV/amu]
+Tim = mu/mi * Ti                    [eV/amu]
+```
+
+ここで `mu` は換算質量、`mt` は中性粒子質量、`mi` はイオン質量である。変数名 `tim` は時刻ではなく、この table temperature `Tim` を表す。D + D+ では `mu/mi = 1/2` なので、物理的なイオン温度 `Ti = 2.0 eV` は table 上では `tim = 1.0 eV/amu` になる。
+
+元コードおよび 3d3v では、`I_1_0` と `I_1_1*up` の lookup だけに温度下限 `TLMT_EL = 0.9 eV/amu` をかけ、`I_1_2*up^2` と `reaction_rate` にはクランプ前の `tim` を使う。D + D+ の場合、これは物理温度では `Ti < 1.8 eV` のときだけ効く。したがって 2.0 eV 同士の検証では、このクランプは残差の原因にはならない。
 
 ## 注意点
 

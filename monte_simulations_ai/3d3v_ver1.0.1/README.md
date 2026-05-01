@@ -68,7 +68,7 @@ OMP_NUM_THREADS=4 make OPENMP=1 FAST=1 run
 - `run/energy_hist.png`
 
 2つの実行結果を比較する場合は、標準では `run_01/delta_E_hist.csv` と
-`run_02/delta_E_hist.csv` を重ね描きする。
+`run_02/delta_E_hist.csv` の `EL`, `CX`, `EL+CX` を1つのグラフに重ね描きする。
 
 ```bash
 make plot-compare-deltaE
