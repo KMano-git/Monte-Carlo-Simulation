@@ -192,10 +192,11 @@ program monte_carlo_3d3v
                   p_before = particles(ip)
                   call score_collision_estimators(p_before, plasma, vx_i, vy_i, vz_i, &
                      v_rel, E_rel, sim%enable_cx, sim%enable_el, &
-                     sim%enable_ionization, particle_score)
+                     sim%enable_ionization, sim%cx_model, particle_score)
 
                   if (coll_type == COLL_CX) then
-                     call collision_cx(particles(ip), vx_i, vy_i, vz_i, delta_E)
+                     call collision_cx(particles(ip), plasma, sim%cx_model, &
+                        vx_i, vy_i, vz_i, delta_E)
                      n_coll_cx = n_coll_cx + 1
                      if (collect_dE) call add_deltaE_hist(thread_dE_hist_cx(:,tid), &
                         delta_E, particles(ip)%weight)
@@ -311,7 +312,7 @@ contains
       end if
 
       call score_track_length_estimator(p, plasma, p%pending_effective_track_time, &
-         sim%enable_cx, sim%enable_el, sim%enable_ionization, local_score)
+         sim%enable_cx, sim%enable_el, sim%enable_ionization, sim%cx_model, local_score)
       if (sim%compare_estimator) then
          call score_pretabulated_track_length(p, plasma, &
             p%pending_effective_track_time, sim%enable_el, local_score)

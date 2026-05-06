@@ -12,6 +12,9 @@ module data_types
    integer, parameter :: REACT_EL = 3
    integer, parameter :: REACT_TOTAL = 4
 
+   integer, parameter :: CX_MODEL_SAMPLED = 0
+   integer, parameter :: CX_MODEL_SRC_READ = 1
+
    !---------------------------------------------------------------------------
    ! RNG state for xoshiro256+
    !---------------------------------------------------------------------------
@@ -46,6 +49,7 @@ module data_types
       logical  :: enable_el
       logical  :: enable_ionization
       logical  :: compare_estimator
+      integer  :: cx_model
       real(dp) :: weight_min
       character(len=256) :: cdf_file
       character(len=256) :: elastic_tl_table_file

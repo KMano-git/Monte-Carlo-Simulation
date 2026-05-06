@@ -5,12 +5,14 @@
 module cross_sections
    use constants, only: dp, M_D_kg, EV_TO_J, J_TO_EV, CM2_TO_M2, PI, &
       E_IONIZE_THRESHOLD
+   use data_types, only: plasma_params
    use cdf_reader, only: get_sigma_elastic
    implicit none
 
    private
-   public :: sigma_cx, sigma_el, sigma_ei, get_scatter_cross_sections
+   public :: sigma_cx, sigma_cx_src_read, sigma_el, sigma_ei, get_scatter_cross_sections
    public :: ionization_rate_coeff, compute_nu_max
+   public :: cx_src_read_sigma_v
 
    !ν_max/n_i の事前計算値
    real(dp), public :: sigma_v_max = 0.0d0     !max(σ_s * v_rel) [m^3/s]
@@ -21,7 +23,7 @@ contains
    ! 荷電交換断面積（Janev近似式）
    ! σ_CX(E) [m^2]、E は重心系相対エネルギー [eV]
    !---------------------------------------------------------------------------
-   function sigma_cx(E_eV) result(sigma)
+   pure function sigma_cx(E_eV) result(sigma)
       real(dp), intent(in) :: E_eV
       real(dp) :: sigma
       real(dp) :: E_safe
@@ -37,6 +39,23 @@ contains
       ! 最小値を設定
       sigma = max(sigma, 1.0d-22)
    end function sigma_cx
+
+   !---------------------------------------------------------------------------
+   ! src_read/monte/ntcros.f と同じ CX 断面積式。
+   ! 呼び出し側で E_rel > 0 を作る想定だが、ゼロ以下は安全に 0 とする。
+   !---------------------------------------------------------------------------
+   pure function sigma_cx_src_read(E_eV) result(sigma)
+      real(dp), intent(in) :: E_eV
+      real(dp) :: sigma
+
+      if (E_eV <= 0.0d0) then
+         sigma = 0.0d0
+         return
+      end if
+
+      sigma = 0.6937d-18 * (1.0d0 - 0.155d0 * log10(E_eV))**2 &
+         / (1.0d0 + 0.1112d-14 * E_eV**3.3d0)
+   end function sigma_cx_src_read
 
    !---------------------------------------------------------------------------
    ! 弾性散乱断面積（CDFデータから）
@@ -111,6 +130,30 @@ contains
    end subroutine get_scatter_cross_sections
 
    !---------------------------------------------------------------------------
+   ! src_read/monte/ntcros.f 型の CX 用有効相対速度。
+   ! v_rel^2 = |v0 - u_i|^2 + 8 Ti e / (pi Mi)
+   !---------------------------------------------------------------------------
+   pure subroutine cx_src_read_sigma_v(vx, vy, vz, plasma, sigma_v, v_rel, E_rel)
+      real(dp), intent(in) :: vx, vy, vz
+      type(plasma_params), intent(in) :: plasma
+      real(dp), intent(out) :: sigma_v
+      real(dp), intent(out) :: v_rel
+      real(dp), intent(out) :: E_rel
+
+      real(dp) :: dv2, thermal_v2, v_rel2
+
+      dv2 = (vx - plasma%ion_flow_vx)**2 + &
+         (vy - plasma%ion_flow_vy)**2 + &
+         (vz - plasma%ion_flow_vz)**2
+      thermal_v2 = 8.0d0 * plasma%ion_temperature_eV * EV_TO_J / &
+         (PI * M_D_kg)
+      v_rel2 = max(dv2 + thermal_v2, 0.0d0)
+      v_rel = sqrt(v_rel2)
+      E_rel = 0.25d0 * M_D_kg * v_rel2 * J_TO_EV
+      sigma_v = sigma_cx_src_read(E_rel) * v_rel
+   end subroutine cx_src_read_sigma_v
+
+   !---------------------------------------------------------------------------
    ! ν_max = n_i * max(σ_s * v_rel) を事前計算
    ! 速度範囲をスキャンして σ_s(E_rel)*v_rel の最大値を探す
    !---------------------------------------------------------------------------
@@ -119,8 +162,8 @@ contains
 
       integer :: i
       integer, parameter :: n_scan = 1000
-      real(dp) :: v_rel, E_rel, sig_cx_val, sig_el_val, sig_s_val
-      real(dp) :: sigma_v, sv_max
+      real(dp) :: v_rel, E_rel, sig_cx_val, sig_el_val
+      real(dp) :: sigma_v_cx, sigma_v_el, sv_cx_max, sv_el_max
       real(dp) :: v_min, v_max, log_v_min, log_v_max, log_v
 
       !速度範囲: 10 m/s ～ 10^7 m/s
@@ -129,7 +172,8 @@ contains
       log_v_min = log(v_min)
       log_v_max = log(v_max)
 
-      sv_max = 0.0d0
+      sv_cx_max = 0.0d0
+      sv_el_max = 0.0d0
 
       do i = 0, n_scan
          log_v = log_v_min + (log_v_max - log_v_min) * dble(i) / dble(n_scan)
@@ -138,17 +182,20 @@ contains
          !相対エネルギー（重心系）: E_rel = (1/2)*μ*v_rel^2, μ=m_D/2
          E_rel = 0.25d0 * M_D_kg * v_rel * v_rel * J_TO_EV
 
-         call get_scatter_cross_sections(E_rel, sig_cx_val, sig_el_val, sig_s_val)
-         sigma_v = sig_s_val * v_rel
+         sig_cx_val = sigma_cx(E_rel)
+         sig_el_val = sigma_el(E_rel)
+         sigma_v_cx = sig_cx_val * v_rel
+         sigma_v_el = sig_el_val * v_rel
 
-         if (sigma_v > sv_max) then
-            sv_max = sigma_v
-         end if
+         if (sigma_v_cx > sv_cx_max) sv_cx_max = sigma_v_cx
+         if (sigma_v_el > sv_el_max) sv_el_max = sigma_v_el
       end do
 
-      sigma_v_max = sv_max
-      write(*,'(A,ES12.4,A)') ' nu_max/n_i = sigma_v_max = ', sv_max, ' [m^3/s]'
-      write(*,'(A,ES12.4,A)') ' nu_max = ', n_i * sv_max, ' [1/s]'
+      sigma_v_max = sv_cx_max + sv_el_max
+      write(*,'(A,ES12.4,A)') ' nu_max/n_i = sigma_v_max = ', sigma_v_max, ' [m^3/s]'
+      write(*,'(A,ES12.4,A)') '   cx component max        = ', sv_cx_max, ' [m^3/s]'
+      write(*,'(A,ES12.4,A)') '   el component max        = ', sv_el_max, ' [m^3/s]'
+      write(*,'(A,ES12.4,A)') ' nu_max = ', n_i * sigma_v_max, ' [1/s]'
 
    end subroutine compute_nu_max
 

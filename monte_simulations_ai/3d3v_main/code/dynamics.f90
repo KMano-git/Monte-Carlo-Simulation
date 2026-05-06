@@ -4,9 +4,9 @@
 !===============================================================================
 module dynamics
    use constants, only: dp, M_D_kg, EV_TO_J, J_TO_EV, PI
-   use data_types, only: particle_t, plasma_params, sim_params
+   use data_types, only: particle_t, plasma_params, sim_params, CX_MODEL_SRC_READ
    use random_utils, only: sample_maxwell_velocity_ion, random_double
-   use cross_sections, only: sigma_cx, sigma_el, sigma_v_max, &
+   use cross_sections, only: sigma_cx, sigma_el, sigma_v_max, cx_src_read_sigma_v, &
       ionization_rate_coeff
    use cdf_reader, only: sample_scattering_angle
    implicit none
@@ -80,10 +80,12 @@ contains
       real(dp), intent(out) :: E_rel              !相対エネルギー [eV]
       integer, intent(out)  :: coll_type
 
-      real(dp) :: sig_cx_val, sig_el_val
-      real(dp) :: sig_cx_eff, sig_el_eff, sig_s_eff
+      real(dp) :: sig_el_val
+      real(dp) :: sigma_v_cx_eff, sigma_v_el_eff, sigma_v_s_eff
+      real(dp) :: v_rel_cx, E_rel_cx
       real(dp) :: P_accept
       real(dp) :: r_accept, r_type
+      logical :: need_sampled_ion
 
       coll_type = COLL_NONE
       vx_i = 0.0d0; vy_i = 0.0d0; vz_i = 0.0d0
@@ -92,36 +94,45 @@ contains
       if (sigma_v_max < 1.0d-30) return
       if (.not. sim%enable_cx .and. .not. sim%enable_el) return
 
-      !背景イオン速度のサンプリング
-      call sample_maxwell_velocity_ion(p%rng, plasma%ion_temperature_eV, &
-         plasma, vx_i, vy_i, vz_i)
+      need_sampled_ion = sim%enable_el .or. &
+         (sim%enable_cx .and. sim%cx_model /= CX_MODEL_SRC_READ)
 
-      !相対速度
-      v_rel = sqrt((p%vx - vx_i)**2 + (p%vy - vy_i)**2 + (p%vz - vz_i)**2)
+      if (need_sampled_ion) then
+         !背景イオン速度のサンプリング
+         call sample_maxwell_velocity_ion(p%rng, plasma%ion_temperature_eV, &
+            plasma, vx_i, vy_i, vz_i)
 
-      !相対エネルギー（重心系）
-      E_rel = 0.25d0 * M_D_kg * v_rel * v_rel * J_TO_EV
+         !相対速度
+         v_rel = sqrt((p%vx - vx_i)**2 + (p%vy - vy_i)**2 + (p%vz - vz_i)**2)
+
+         !相対エネルギー（重心系）
+         E_rel = 0.25d0 * M_D_kg * v_rel * v_rel * J_TO_EV
+      end if
 
       !実断面積（CX+ELのみ）
-      sig_cx_val = sigma_cx(E_rel)
-      sig_el_val = sigma_el(E_rel)
       if (sim%enable_cx) then
-         sig_cx_eff = sig_cx_val
+         if (sim%cx_model == CX_MODEL_SRC_READ) then
+            call cx_src_read_sigma_v(p%vx, p%vy, p%vz, plasma, &
+               sigma_v_cx_eff, v_rel_cx, E_rel_cx)
+         else
+            sigma_v_cx_eff = sigma_cx(E_rel) * v_rel
+         end if
       else
-         sig_cx_eff = 0.0d0
+         sigma_v_cx_eff = 0.0d0
       end if
 
       if (sim%enable_el) then
-         sig_el_eff = sig_el_val
+         sig_el_val = sigma_el(E_rel)
+         sigma_v_el_eff = sig_el_val * v_rel
       else
-         sig_el_eff = 0.0d0
+         sigma_v_el_eff = 0.0d0
       end if
 
-      sig_s_eff = sig_cx_eff + sig_el_eff
-      if (sig_s_eff <= 1.0d-30) return
+      sigma_v_s_eff = sigma_v_cx_eff + sigma_v_el_eff
+      if (sigma_v_s_eff <= 1.0d-30) return
 
-      !Rejection判定: P_accept = σ_s * v_rel / (sigma_v_max)
-      P_accept = sig_s_eff * v_rel / sigma_v_max
+      !Rejection判定: P_accept = Σ(σ*v_rel) / (sigma_v_max)
+      P_accept = sigma_v_s_eff / sigma_v_max
 
       !安全策: P_accept > 1 の場合（理論上は起きないはず）
       if (P_accept > 1.0d0) P_accept = 1.0d0
@@ -131,7 +142,7 @@ contains
 
       !CX/EL衝突タイプの選択
       r_type = random_double(p%rng)
-      if (r_type < sig_cx_eff / sig_s_eff) then
+      if (r_type < sigma_v_cx_eff / sigma_v_s_eff) then
             coll_type = COLL_CX
       else
             coll_type = COLL_EL
@@ -143,18 +154,29 @@ contains
    !---------------------------------------------------------------------------
    ! 荷電交換衝突: 中性粒子速度を背景イオン速度で置き換え
    !---------------------------------------------------------------------------
-   subroutine collision_cx(p, vx_i, vy_i, vz_i, delta_E)
+   subroutine collision_cx(p, plasma, cx_model, vx_i, vy_i, vz_i, delta_E)
       type(particle_t), intent(inout) :: p
+      type(plasma_params), intent(in) :: plasma
+      integer, intent(in) :: cx_model
       real(dp), intent(in)  :: vx_i, vy_i, vz_i
       real(dp), intent(out) :: delta_E
 
       real(dp) :: E_old, E_new
+      real(dp) :: vx_new, vy_new, vz_new
 
       E_old = 0.5d0 * M_D_kg * (p%vx**2 + p%vy**2 + p%vz**2)
 
-      p%vx = vx_i
-      p%vy = vy_i
-      p%vz = vz_i
+      if (cx_model == CX_MODEL_SRC_READ) then
+         call sample_maxwell_velocity_ion(p%rng, plasma%ion_temperature_eV, &
+            plasma, vx_new, vy_new, vz_new)
+         p%vx = vx_new
+         p%vy = vy_new
+         p%vz = vz_new
+      else
+         p%vx = vx_i
+         p%vy = vy_i
+         p%vz = vz_i
+      end if
 
       E_new = 0.5d0 * M_D_kg * (p%vx**2 + p%vy**2 + p%vz**2)
       delta_E = E_new - E_old

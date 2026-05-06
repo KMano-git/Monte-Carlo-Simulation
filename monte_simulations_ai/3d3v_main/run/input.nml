@@ -9,6 +9,7 @@
     enable_el     = .true.
     enable_ei     = .true.
     compare_estimator = .false.
+    cx_model      = 0          ! 0: 現行sampled版, 1: src_read/monte版
     weight_min    = 1.0d-10   !最小重み閾値
 
     cdf_file           = 'krstic_dd_total_elastic_integral_priority.cdf'

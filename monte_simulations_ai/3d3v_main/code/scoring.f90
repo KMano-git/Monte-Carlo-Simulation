@@ -5,8 +5,9 @@
 module scoring
    use constants, only: dp, M_D_kg, EV_TO_J, J_TO_EV
    use data_types, only: particle_t, plasma_params, score_data, rng_state, &
-      REACT_EI, REACT_CX, REACT_EL
-   use cross_sections, only: sigma_cx, sigma_el, ionization_rate_coeff
+      REACT_EI, REACT_CX, REACT_EL, CX_MODEL_SRC_READ
+   use cross_sections, only: sigma_cx, sigma_el, ionization_rate_coeff, &
+      cx_src_read_sigma_v
    use random_utils, only: sample_maxwell_velocity_ion
    use cdf_reader, only: get_reaction_rate, get_I_1_0, get_I_1_1_up, get_I_1_2_up2
    use tl_el_table_reader, only: get_tl_el_rate_from_table
@@ -34,30 +35,37 @@ contains
    ! collision updates the particle velocity.
    !---------------------------------------------------------------------------
    subroutine score_collision_estimators(p, plasma, vx_i, vy_i, vz_i, v_rel, E_rel, &
-      enable_cx, enable_el, enable_ionization, score)
+      enable_cx, enable_el, enable_ionization, cx_model, score)
       type(particle_t), intent(in)    :: p
       type(plasma_params), intent(in) :: plasma
       real(dp), intent(in)            :: vx_i, vy_i, vz_i
       real(dp), intent(in)            :: v_rel, E_rel
       logical, intent(in)             :: enable_cx, enable_el, enable_ionization
+      integer, intent(in)             :: cx_model
       type(score_data), intent(inout) :: score
 
       real(dp) :: sig_cx_val, sig_el_val
       real(dp) :: R_cx, R_el, R_s, R_a
       real(dp) :: dN_ei, dN_cx, dN_el
+      real(dp) :: sigma_v_cx, v_rel_cx, E_rel_cx
       real(dp) :: el_energy_rate, el_reaction_rate, el_energy_score
       real(dp) :: el_momentum_rate(3), el_momentum_score(3)
 
-      sig_cx_val = sigma_cx(E_rel)
-      sig_el_val = sigma_el(E_rel)
-
       if (enable_cx) then
-         R_cx = plasma%ion_density * sig_cx_val * v_rel
+         if (cx_model == CX_MODEL_SRC_READ) then
+            call cx_src_read_sigma_v(p%vx, p%vy, p%vz, plasma, &
+               sigma_v_cx, v_rel_cx, E_rel_cx)
+            R_cx = plasma%ion_density * sigma_v_cx
+         else
+            sig_cx_val = sigma_cx(E_rel)
+            R_cx = plasma%ion_density * sig_cx_val * v_rel
+         end if
       else
          R_cx = 0.0d0
       end if
 
       if (enable_el) then
+         sig_el_val = sigma_el(E_rel)
          R_el = plasma%ion_density * sig_el_val * v_rel
       else
          R_el = 0.0d0
@@ -79,10 +87,15 @@ contains
       call add_ei_source(score%cl%reaction(REACT_EI), dN_ei, p)
       call add_ei_source(score%cl_avg%reaction(REACT_EI), dN_ei, p)
 
-      call add_cx_source(score%cl%reaction(REACT_CX), dN_cx, p, plasma, &
-         vx_i, vy_i, vz_i)
-      call add_cx_source(score%cl_avg%reaction(REACT_CX), dN_cx, p, plasma, &
-         vx_i, vy_i, vz_i)
+      if (cx_model == CX_MODEL_SRC_READ) then
+         call add_cx_source(score%cl%reaction(REACT_CX), dN_cx, p, plasma)
+         call add_cx_source(score%cl_avg%reaction(REACT_CX), dN_cx, p, plasma)
+      else
+         call add_cx_source(score%cl%reaction(REACT_CX), dN_cx, p, plasma, &
+            vx_i, vy_i, vz_i)
+         call add_cx_source(score%cl_avg%reaction(REACT_CX), dN_cx, p, plasma, &
+            vx_i, vy_i, vz_i)
+      end if
 
       if (enable_el .and. R_el > SCORE_TINY) then
          dN_el = p%weight * (R_el / R_s)
@@ -108,16 +121,17 @@ contains
    ! Track-length estimator for EI/CX/EL.
    !---------------------------------------------------------------------------
    subroutine score_track_length_estimator(p, plasma, pending_eff_time, &
-      enable_cx, enable_el, enable_ionization, score)
+      enable_cx, enable_el, enable_ionization, cx_model, score)
       type(particle_t), intent(in)    :: p
       type(plasma_params), intent(in) :: plasma
       real(dp), intent(in)            :: pending_eff_time
       logical, intent(in)             :: enable_cx, enable_el, enable_ionization
+      integer, intent(in)             :: cx_model
       type(score_data), intent(inout) :: score
 
       real(dp) :: R_a, dN_ei
       real(dp) :: vx_d, vy_d, vz_d, v_rel_d, E_rel_cx
-      real(dp) :: R_cx_sample, dN_cx
+      real(dp) :: sigma_v_cx, R_cx_sample, dN_cx
       real(dp) :: el_energy_rate, el_reaction_rate, el_energy_score
       real(dp) :: el_momentum_rate(3), el_momentum_score(3)
       type(rng_state) :: rng_work
@@ -132,15 +146,23 @@ contains
       end if
 
       if (enable_cx) then
-         rng_work = p%rng
-         call sample_maxwell_velocity_ion(rng_work, plasma%ion_temperature_eV, &
-            plasma, vx_d, vy_d, vz_d)
-         v_rel_d = sqrt((p%vx - vx_d)**2 + (p%vy - vy_d)**2 + (p%vz - vz_d)**2)
-         E_rel_cx = 0.25d0 * M_D_kg * v_rel_d * v_rel_d * J_TO_EV
-         R_cx_sample = plasma%ion_density * sigma_cx(E_rel_cx) * v_rel_d
-         dN_cx = R_cx_sample * pending_eff_time
-         call add_cx_source(score%tr%reaction(REACT_CX), dN_cx, p, plasma, &
-            vx_d, vy_d, vz_d)
+         if (cx_model == CX_MODEL_SRC_READ) then
+            call cx_src_read_sigma_v(p%vx, p%vy, p%vz, plasma, &
+               sigma_v_cx, v_rel_d, E_rel_cx)
+            R_cx_sample = plasma%ion_density * sigma_v_cx
+            dN_cx = R_cx_sample * pending_eff_time
+            call add_cx_source(score%tr%reaction(REACT_CX), dN_cx, p, plasma)
+         else
+            rng_work = p%rng
+            call sample_maxwell_velocity_ion(rng_work, plasma%ion_temperature_eV, &
+               plasma, vx_d, vy_d, vz_d)
+            v_rel_d = sqrt((p%vx - vx_d)**2 + (p%vy - vy_d)**2 + (p%vz - vz_d)**2)
+            E_rel_cx = 0.25d0 * M_D_kg * v_rel_d * v_rel_d * J_TO_EV
+            R_cx_sample = plasma%ion_density * sigma_cx(E_rel_cx) * v_rel_d
+            dN_cx = R_cx_sample * pending_eff_time
+            call add_cx_source(score%tr%reaction(REACT_CX), dN_cx, p, plasma, &
+               vx_d, vy_d, vz_d)
+         end if
       end if
 
       if (enable_el) then

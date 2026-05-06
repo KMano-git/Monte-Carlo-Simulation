@@ -7,7 +7,8 @@ module io
    use data_types, only: particle_t, sim_params, plasma_params, init_params, &
       diag_params, score_data, score_stats_data, source_terms_t, &
       estimator_score_t, estimator_stats_t, source_stats_t, running_stats_t, &
-      system_totals_t, REACT_EI, REACT_CX, REACT_EL, REACT_TOTAL, N_REACTIONS
+      system_totals_t, REACT_EI, REACT_CX, REACT_EL, REACT_TOTAL, N_REACTIONS, &
+      CX_MODEL_SAMPLED, CX_MODEL_SRC_READ
    use random_utils, only: sample_maxwell_velocity, set_beam_velocity, init_rng, &
       random_double
    use statistics, only: running_stddev, running_stderr
@@ -32,7 +33,7 @@ contains
       logical :: file_exist
       integer :: ios
 
-      integer  :: n_particles, n_steps, seed
+      integer  :: n_particles, n_steps, seed, cx_model
       real(dp) :: dt, weight_min
       logical  :: enable_cx, enable_el, enable_ei, compare_estimator
       character(len=256) :: cdf_file, tl_el_table_file
@@ -51,7 +52,7 @@ contains
 
       namelist /simulation/ n_particles, n_steps, dt, seed, &
          enable_cx, enable_el, enable_ei, compare_estimator, &
-         weight_min, cdf_file, tl_el_table_file, &
+         cx_model, weight_min, cdf_file, tl_el_table_file, &
          output_sources, output_stats, output_balance, output_ntscrg, &
          output_hist, output_deltaE_hist
       namelist /plasma_nml/ n_i, T_i, n_e, T_e, u_x, u_y, u_z
@@ -68,6 +69,7 @@ contains
       enable_el = .true.
       enable_ei = .true.
       compare_estimator = .false.
+      cx_model = CX_MODEL_SAMPLED
       weight_min = 1.0d-10
       cdf_file = 'dd_00_elastic.cdf'
       tl_el_table_file = 'tl_el_table.dat'
@@ -125,6 +127,12 @@ contains
          close(unit_input)
       end if
 
+      if (cx_model /= CX_MODEL_SAMPLED .and. cx_model /= CX_MODEL_SRC_READ) then
+         write(*,'(A,I0)') 'Error: cx_model must be 0(sampled) or 1(src_read), got ', &
+            cx_model
+         stop 1
+      end if
+
       sim%n_particles = n_particles
       sim%n_steps = n_steps
       sim%dt = dt
@@ -133,6 +141,7 @@ contains
       sim%enable_el = enable_el
       sim%enable_ionization = enable_ei
       sim%compare_estimator = compare_estimator
+      sim%cx_model = cx_model
       sim%weight_min = weight_min
       sim%cdf_file = cdf_file
       sim%elastic_tl_table_file = tl_el_table_file
@@ -176,6 +185,11 @@ contains
       write(*,'(A,L1)')      '  enable_el        = ', enable_el
       write(*,'(A,L1)')      '  enable_ei        = ', enable_ei
       write(*,'(A,L1)')      '  compare_estimator= ', compare_estimator
+      if (cx_model == CX_MODEL_SRC_READ) then
+         write(*,'(A,A)')     '  cx_model         = ', '1 (src_read)'
+      else
+         write(*,'(A,A)')     '  cx_model         = ', '0 (sampled)'
+      end if
       write(*,'(A,A)')       '  cdf_file         = ', trim(cdf_file)
       write(*,'(A,ES12.4)')  '  n_i              = ', n_i
       write(*,'(A,F8.2,A)')  '  T_i              = ', T_i, ' eV'

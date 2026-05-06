@@ -1,6 +1,6 @@
-# 3D3V Monte Carlo Simulation ver 1.0.0
+# 3D3V Monte Carlo Simulation
 
-`project/monte_simulations_ai/3d3v_ver1.0.0/`はこれまでの非アナログモンテカルロシミュレーションをまとめたコードである。
+`project/monte_simulations_ai/3d3v_main/`はこれまでの非アナログモンテカルロシミュレーションをまとめたコードである。
 外部発表のため、Neut2Dのスラブコードとして完成させるためのディレクトリである。
 
 元にしたコードは`project/monte_simulations_ai/3d3v_lookup_check/`である。
@@ -27,6 +27,51 @@
 ## 設計書
 
 実装方針、推定器の定義、EI/CX/EL の source 計算式、出力仕様は [DESIGN.md](DESIGN.md) にまとめる。
+
+## CX モデルの比較
+
+`run/input.nml` の `cx_model` で CX の扱いを切り替えられる。
+
+```fortran
+cx_model = 0  ! 現行 3D3V sampled ion 版
+cx_model = 1  ! src_read/monte 準拠版
+```
+
+`cx_model = 0` は、衝突判定時に背景イオン速度 `vi` を Maxwell 分布から sample し、
+
+```text
+v_rel = |v0 - vi|
+E_rel = 0.25 * m_D * v_rel^2 / e
+R_CX  = n_i * sigma_CX(E_rel) * v_rel
+```
+
+で CX rate を評価する。CX が実衝突として採択された場合、中性粒子速度は同じ sampled ion 速度 `vi` に置き換える。CX source も sampled `vi` を使い、運動量・エネルギー source は
+
+```text
+Sp_CX = dN * m_D * (v0 - vi)
+Wi_CX = dN * (0.5 * m_D * |v0|^2 - 0.5 * m_D * |vi|^2)
+```
+
+で評価する。
+
+`cx_model = 1` は、`src_read/monte/ntcros.f`, `ntfolw_atom.f`, `ntscor_cl.f`, `ntscor_tr.f` に寄せた比較用モデルである。CX rate は sampled ion 速度ではなく、背景 flow と ion 温度から作る有効相対速度を使う。
+
+```text
+v_rel^2 = |v0 - u_i|^2 + 8 * T_i * e / (pi * m_D)
+E_rel   = 0.25 * m_D * v_rel^2 / e
+R_CX    = n_i * sigma_CX_src_read(E_rel) * v_rel
+```
+
+CX 後の中性粒子速度は、`src_read` と同じく背景 flow 付き Maxwell 分布から新しく sample する。source は sampled `vi` ではなく、背景 flow と平均 thermal energy を使う。
+
+```text
+Sp_CX = dN * m_D * (v0 - u_i)
+Wi_CX = dN * (0.5 * m_D * |v0|^2
+              - 1.5 * T_i * e
+              - 0.5 * m_D * |u_i|^2)
+```
+
+同じ seed と入力条件で `cx_model = 0` と `cx_model = 1` を切り替えると、現行 3D3V の sampled ion 実装と `src_read/monte` 寄せ実装の違いを比較できる。
 
 ## ビルドと実行
 
@@ -79,3 +124,9 @@ make plot-compare-deltaE
 ```bash
 gnuplot -e "file1='run/delta_E_hist.csv'; file2='../other_run/delta_E_hist.csv'; label1='case A'; label2='case B'" plot_compare_deltaE.gp
 ```
+
+## 変更履歴
+
+1.0.0: 設計はDESIGN.md参照
+1.0.1: gnuplotを追加、分散等も確認できるように
+1.1.0: CXの比較を追加
