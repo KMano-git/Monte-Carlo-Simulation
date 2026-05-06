@@ -268,8 +268,8 @@ def plot_rows(
     ax.axhline(0.0, color="0.2", lw=0.9)
     ax.set_xscale("log")
     ax.set_yscale("symlog", linthresh=linthresh, linscale=0.8)
-    ax.set_xlabel(r"Ion / neutral temperature  $T_i = T_n$  [eV]",fontsize=14)
-    ax.set_ylabel(r"Ion energy contribution  $-\langle\sigma v \Delta E_n\rangle$  [eV cm$^3$/s]",fontsize=14)
+    ax.set_xlabel(r"Ion / neutral temperature  $T_i = T_n$ / eV",fontsize=14)
+    ax.set_ylabel(r"Ion energy contribution  $-\langle\sigma v \Delta E_n\rangle$  / eV cm$^3$s$^{-1}$",fontsize=14)
     # clamp_text = (
     #     f"temperature clamp on (TLMT_EL={tlmt_el_value:g} eV/amu)"
     #     if temperature_clamp_enabled
